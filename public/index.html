@@ -31,7 +31,60 @@
 .metric b{font-size:13px}
 }
 </style>
-<style>.pwa-update{position:fixed;left:10px;right:10px;bottom:10px;z-index:200;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #1c7285;border-radius:10px;background:#0b2028f5;color:#d9fbff;box-shadow:0 14px 40px #0008}.pwa-update .btn{min-height:36px}</style></head>
+<style>.pwa-update{position:fixed;left:10px;right:10px;bottom:10px;z-index:200;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #1c7285;border-radius:10px;background:#0b2028f5;color:#d9fbff;box-shadow:0 14px 40px #0008}.pwa-update .btn{min-height:36px}</style>
+<style id="reference-ui-v65">
+/* V65 reference UI: compact two-column mobile/tablet layout matching the approved screenshot */
+@media (max-width: 1100px), (pointer: coarse) {
+  body{font-size:12px;overflow-x:hidden}
+  .top{height:52px;min-height:52px;padding:6px 8px;align-items:center;gap:6px}
+  .brand{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+  .status{width:auto;justify-content:flex-end;align-items:center;gap:4px;flex-wrap:nowrap;white-space:nowrap}
+  .status .mode,.status #conn{font-size:8px;padding:3px 5px}
+  .status .dot{width:6px;height:6px}
+  .status .btn{min-height:28px;padding:4px 6px;font-size:9px}
+  .wrap{grid-template-columns:150px minmax(0,1fr)!important;gap:6px;padding:6px;align-items:start}
+  .left,.center,.right{min-width:0;width:auto}
+  .right{grid-column:1/-1!important}
+  .panel{border-radius:9px}
+  .phead{padding:7px 8px;font-size:10px;min-height:30px}
+  .pbody{padding:7px}
+  .section{margin-top:6px}
+  .symbols{max-height:340px}
+  .sym{padding:7px 6px;font-size:10px}
+  .sym .muted{font-size:8px}
+  .btn{min-height:30px;padding:5px 6px;font-size:10px}
+  .form{gap:5px}
+  .form input,.form select{min-height:30px;padding:5px 6px;font-size:10px}
+  .kv{padding:4px 0;font-size:9px}
+  .metricgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .grid3{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .grid2{gap:5px}
+  .metric{padding:6px;border-radius:7px;font-size:9px}
+  .metric b{font-size:12px}
+  .score{font-size:28px}
+  .chartbox{height:390px;min-height:360px;max-height:390px}
+  .overlay{top:5px;left:5px;right:5px;gap:3px}
+  .tag{padding:3px 5px;font-size:8px}
+  .charttools{bottom:5px;left:5px;gap:3px}
+  .charttools .btn{min-height:28px;padding:4px 5px;font-size:9px}
+  .tradegrid .btn{min-height:34px;padding:7px 5px}
+  .tabs{padding:5px;gap:4px}
+  .tabs .btn,.tabs .pill{font-size:8px;padding:3px 5px}
+  .backtest{grid-template-columns:180px minmax(0,1fr);gap:7px}
+  .edu{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .edu .card{margin-bottom:0}
+  .logs{max-height:180px}
+}
+@media (max-width: 520px) {
+  .wrap{grid-template-columns:150px minmax(0,1fr)!important}
+  .chartbox{height:390px;min-height:390px;max-height:390px}
+  .symbols{max-height:340px}
+  .metricgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .edu{grid-template-columns:1fr 1fr}
+  .brand{max-width:48%}
+}
+</style>
+</head>
 <body>
 <div id="pwaUpdate" class="pwa-update" style="display:none"><span>Versi baru tersedia.</span><button class="btn cyan" id="pwaUpdateBtn">UPDATE APP</button></div>
 <header class="top"><div class="brand">⚡ <span>ilham novandi</span> · Futures Command Center</div><div class="status"><span class="dot" id="dot"></span><span id="conn">WS CONNECTING</span><span class="mode" id="mode">PAPER · 15M</span><button class="btn cyan" id="installBtn" style="display:none">INSTALL APP</button><button class="btn danger" id="killBtn">KILL SWITCH: OFF</button></div></header>
