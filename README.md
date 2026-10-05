@@ -1,5 +1,3 @@
-# ilham novandi trader V46
+# ilham novandi — V53 Profit-First 15M
 
-15M-only Best Pair Hunter with comparative 5-candle momentum.
-
-Entry does not use a minimum confidence percentage. Confidence is informational/ranking only. The hunter compares 1-candle, 3-candle and 5-candle directional momentum plus EMA alignment, volume, breakout/rejection, then selects the best opportunity. Switching a materially better pair is atomic with entry after a fresh 15M validation. Profit giveback remains based on peak paper PnL.
+Paper trading build. V53 relaxes the V52 entry filter so the scanner can identify more genuine 15M profit opportunities without chasing extreme/overextended moves. It keeps hard floating-loss, daily-loss, pair loss-cut, profit giveback, and 15M-only behavior.
