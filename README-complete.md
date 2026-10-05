@@ -1,3 +1,7 @@
+# V56 update
+
+Pair loss movement guard: 2–3 meaningful adverse price moves trigger immediate close. Default 3. Hard floating loss default 0.20% equity. Entry fees/slippage do not count as movement. 15M only.
+
 # V46 Complete
 
 ## Core behavior
