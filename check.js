@@ -73,6 +73,28 @@ function log(s){const e=document.createElement('div');e.className='log';e.textCo
 function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
 function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
 function sr(cs=candles){let h=[],l=[];for(let i=2;i<cs.length-2;i++){if(cs[i].high>cs[i-1].high&&cs[i].high>cs[i+1].high)h.push(cs[i].high);if(cs[i].low<cs[i-1].low&&cs[i].low<cs[i+1].low)l.push(cs[i].low)}let p=cs.at(-1)?.close||0;let resistance=h.filter(x=>x>p).sort((a,b)=>a-b)[0]||Math.max(...cs.slice(-40).map(x=>x.high));let support=l.filter(x=>x<p).sort((a,b)=>b-a)[0]||Math.min(...cs.slice(-40).map(x=>x.low));return{support,resistance}}
+function profitOpportunity(a, quote={}){
+ const dir=a.bias==='LONG'?1:a.bias==='SHORT'?-1:0;
+ if(!dir)return {edge:-Infinity,opportunity:-Infinity,signal:false};
+ const cs=Array.isArray(a?._cs)&&a._cs.length>=6?a._cs:candles;
+ const c=a.c, p1=cs.at(-2), p3=cs.at(-4), p5=cs.at(-6);
+ if(!p1||!p3||!p5)return {edge:-Infinity,opportunity:-Infinity,signal:false};
+ const atr=Math.max(a.A,Math.abs(c.close)*0.0005,1e-12);
+ const slope3=dir*(c.close-p3.close)/atr;
+ const slope5=dir*(c.close-p5.close)/atr;
+ const bodyImpulse=dir*(c.close-c.open)/atr;
+ const emaAlign=dir*(c.close-a.e)/atr;
+ const emaSlope=dir*a.emaSlope;
+ const volBoost=Math.min(2,Math.max(0,Number(a.vol||0)-0.6));
+ const breakout=(dir===1&&a.breakoutLong)||(dir===-1&&a.breakoutShort);
+ const rejection=(dir===1&&a.rejectLong)||(dir===-1&&a.rejectShort);
+ const edge=slope3*0.35+slope5*0.20+bodyImpulse*0.18+emaAlign*0.12+emaSlope*0.08+volBoost*0.35+(breakout?0.9:0)+(rejection?0.45:0);
+ const immediate=dir*(c.close-p1.close)/atr;
+ const signal=(slope3>0 && (immediate>0 || bodyImpulse>0 || breakout || rejection) && emaAlign>-0.35);
+ const opportunity=edge*20 + Math.min(12,Math.max(0,immediate*6)) + Math.min(10,Math.max(0,slope3*4)) + (breakout?12:0) + (rejection?5:0) + Math.min(8,Math.max(0,(a.vol-0.8)*8));
+ return {edge,opportunity,signal,slope3,slope5,immediate};
+}
+
 function analyzeData(cs){
  if(cs.length<30)return null;
  const c=cs.at(-1),p=cs.at(-2),cl=cs.map(x=>x.close),es=ema(cl),e=es.at(-1),A=atr(cs),{support,resistance}=sr(cs);
@@ -110,7 +132,7 @@ function analyzeData(cs){
  // Score/confidence hanya untuk ranking BEST PAIR, bukan syarat entry.
  const allowed=directional;
  const slDist=Math.max(A*.8,c.close*.004),rr=2,tpDist=slDist*rr;
- return {c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr};
+ const tmp={c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr}; const po=profitOpportunity(tmp); tmp.opportunity=po.opportunity; tmp.profitSignal=po.signal; tmp.profitEdge=po.edge; return tmp;
 }
 function analyze(){return analyzeData(candles)}
 function intervalSec(){return 900}
@@ -254,7 +276,7 @@ async function scan(){
  if(hunterBusy)return; hunterBusy=true;
  try{
   const d=await getScanTicker();
-  const liquid=d.filter(x=>x.symbol?.endsWith('USDT')&&!x.symbol.includes('_')&&x.symbol!=='USDCUSDT'&&Number(x.quoteVolume)>2e6&&Number(x.lastPrice)>0);
+  const liquid=d.filter(x=>x&&x.symbol?.endsWith('USDT')&&!x.symbol.includes('_')&&x.symbol!=='USDCUSDT'&&Number(x.quoteVolume)>2e6&&Number(x.lastPrice)>0);
   const movers=[...liquid].sort((a,b)=>Math.abs(+b.priceChangePercent)-Math.abs(+a.priceChangePercent));
   const volume=[...liquid].sort((a,b)=>+b.quoteVolume-+a.quoteVolume);
   const gainers=[...liquid].sort((a,b)=>+b.priceChangePercent-+a.priceChangePercent);
@@ -271,46 +293,47 @@ async function scan(){
   let cursor=0;
   async function worker(){
    while(true){const i=cursor++; if(i>=universe.length)return; const x=universe[i];
-    try{const cs=await getScanKlines(x.symbol); const a=analyzeData(cs); if(!a||a.bias==='NEUTRAL')continue; scanStats.ok++; ranked.push({symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume});}
+    try{const cs=await getScanKlines(x.symbol); const a=analyzeData(cs); if(!a||a.bias==='NEUTRAL')continue; scanStats.ok++; a._cs=cs; ranked.push({symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume});}
     catch{scanStats.fail++;}
    }
   }
   await Promise.all(Array.from({length:Math.min(HUNTER.maxConcurrent,universe.length)},worker));
   ranked.forEach(r=>{
-    const a=r.analysis, dir=r.bias==='LONG'?1:-1;
-    const impulse=Math.max(0,dir*a.momentum)*8;
-    const candle=(dir===1&&a.bull?8:dir===-1&&a.bear?8:0);
-    const ema=(dir===1&&a.c.close>=a.e?7:dir===-1&&a.c.close<=a.e?7:0);
-    const breakout=(dir===1&&a.breakoutLong?15:dir===-1&&a.breakoutShort?15:0);
-    const vol=Math.min(12,Math.max(0,(a.vol-0.8)*8));
-    const move=Math.min(15,Math.abs(r.change)*0.8);
-    r.opportunity=impulse+candle+ema+breakout+vol+move+(a.score*0.15);
+    const po=profitOpportunity(r.analysis,{change:r.change,volume:r.volume});
+    r.opportunity=po.opportunity; r.profitSignal=po.signal; r.profitEdge=po.edge; r.slope3=po.slope3; r.immediate=po.immediate;
   });
   const nowTs=Date.now();
   const activeSymbol=paperPos?.symbol; const streakLimit=Math.max(1,Number($('#cooldownLosses').value)||3);
   const forceRotateCurrent=!!(activeSymbol&&Number(symbolLossStreaks[activeSymbol]||0)>=streakLimit);
-  const eligible=ranked.filter(r=>{const cooling=symbolCooldowns[r.symbol]&&symbolCooldowns[r.symbol]>nowTs; if(cooling)return false; if(forceRotateCurrent&&r.symbol===activeSymbol)return false; return true;});
-  if(eligible.length) ranked.splice(0,ranked.length,...eligible);
-  ranked.sort((a,b)=>b.opportunity-a.opportunity || Math.abs(b.change)-Math.abs(a.change) || b.volume-a.volume);
-  const best=ranked[0]; const current=paperPos?analyze():null;
-  const active=hasValidPaperPosition(); const exitReason=active?lossExitReason(current,best):null;
-  const currentOpp=active?Number(current?.opportunity||0):0;
-  const bestOpp=Number(best?.opportunity||0);
-  const better=active&&best&&best.symbol!==paperPos.symbol&&bestOpp>=currentOpp+2;
-  const repeatLimit=Math.max(1,Number($('#cooldownLosses').value)||3);
-  const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=repeatLimit;
-  const canEnter=!active;
-  const canRotate=active&&best&&best.symbol!==paperPos.symbol&&(repeatedLoss||exitReason||better);
+  const eligible=ranked.filter(r=>{
+    const cooling=symbolCooldowns[r.symbol]&&symbolCooldowns[r.symbol]>nowTs;
+    if(cooling)return false;
+    if(forceRotateCurrent&&r.symbol===activeSymbol)return false;
+    return r.profitSignal===true && Number(r.opportunity)>0;
+  });
+  eligible.sort((a,b)=>b.opportunity-a.opportunity || Math.abs(b.change)-Math.abs(a.change) || b.volume-a.volume);
+  const best=eligible[0]; const current=paperPos?analyze():null;
+  if(best) best.analysis._cs=best.analysis._cs||[];
+  const active=hasValidPaperPosition();
+  const currentPO=active?profitOpportunity(current):{opportunity:-Infinity,signal:false};
+  const currentOpp=Number(currentPO.opportunity||-Infinity);
+  const bestOpp=Number(best?.opportunity||-Infinity);
+  const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=streakLimit;
+  const materiallyBetter=!!(best&&best.symbol!==paperPos.symbol&&best.profitSignal&&bestOpp>currentOpp+1);
+  const currentLosing=active&&currentPaperPnl(current?.c?.close||paperPos.entry)<0;
+  const canEnter=!active&&!!best;
+  const canRotate=active&&best&&best.symbol!==paperPos.symbol&&((repeatedLoss&&best.profitSignal)||(currentLosing&&materiallyBetter));
   if(best&&(canEnter||canRotate)){
    const oldSymbol=paperPos?.symbol;
-   if(active){const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);closePaper(mark,livePnl);log(`HUNTER EXIT → ${oldSymbol||symbol} · ${exitReason||'BEST PAIR ROTATION'} · ${fmtIDR(livePnl)}`);}
+   if(active){const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);closePaper(mark,livePnl,canRotate?'BEST PROFIT OPPORTUNITY ROTATE':'AUTO EXIT');log(`HUNTER EXIT → ${oldSymbol||symbol} → ${best.symbol} · ${fmtIDR(livePnl)}`);}
    await switchSymbol(best.symbol); const fresh=analyze();
-   if(fresh&&fresh.bias===best.bias&&fresh.bias!=='NEUTRAL'){const reopened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh,{hunter:true});if(reopened){lastHunterSymbol=best.symbol;lastHunterCandle=fresh.c.time;$('#scanState').textContent=`BEST ${best.symbol} · AUTO ${fresh.bias} ENTRY`; log(`BEST PAIR → ${best.symbol} ${fresh.bias} @ ${fmtP(fresh.c.close)} | rank ${fresh.score.toFixed(0)}`);}}
-  }else if(active&&exitReason){
-   const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);const oldSymbol=paperPos.symbol;closePaper(mark,livePnl);$('#scanState').textContent='EXIT · RESCAN BEST PAIR';log(`AUTO EXIT → ${oldSymbol} · ${exitReason} · ${fmtIDR(livePnl)}`);
+   const freshPO=fresh?profitOpportunity(fresh):null;
+   if(fresh&&fresh.bias===best.bias&&fresh.bias!=='NEUTRAL'&&freshPO?.signal){const reopened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh,{hunter:true});if(reopened){lastHunterSymbol=best.symbol;lastHunterCandle=fresh.c.time;$('#scanState').textContent=`BEST ${best.symbol} · AUTO ${fresh.bias} ENTRY`; log(`BEST PROFIT PAIR → ${best.symbol} ${fresh.bias} @ ${fmtP(fresh.c.close)} | opportunity ${freshPO.opportunity.toFixed(1)}`);}}
+  }else if(active&&repeatedLoss){
+   $('#scanState').textContent=`HOLD ${paperPos.symbol} · mencari pair profit`;
   }else if(best){
    $('#scanState').textContent=active?`HOLD ${paperPos.symbol} · BEST ${best.symbol} ${best.score.toFixed(0)} · ${fmtIDR(currentPaperPnl(current?.c?.close||paperPos.entry))}`:`BEST ${best.symbol} ${best.bias} · ENTRY READY`;
-  }else $('#scanState').textContent=`NO DIRECTION · ${scanStats.ok}/${scanStats.total} parsed`;
+  }else $('#scanState').textContent=`NO PROFIT SETUP · ${scanStats.ok}/${scanStats.total} parsed`;
  }catch(e){log('Scanner error: '+e.message);$('#scanState').textContent='SCAN ERROR · '+e.message} finally{hunterBusy=false}
 }
 let fastHunterBusy=false;async function maybeFastHunter(){return;}
@@ -333,7 +356,7 @@ function syncPaperStateUI(a=null){
   if(statusEl){statusEl.className='warning';statusEl.textContent=`POSISI AKTIF · ${p.side} ${p.symbol} · Entry ${fmtTradeP(p.entry)}`;}
   return true;
 }
-function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(lossStreak>=Number($('#cooldownLosses').value))return['cooldown consecutive loss'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
+function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
 function positionSize(price,sl){let risk=accountEquity*Number($('#risk').value)/100;let dist=Math.abs(price-sl);return dist?risk/dist:Number($('#qty').value)}
 function openPaper(side,forcedAnalysis=null,opts={}){
   if(hasValidPaperPosition()){syncPaperStateUI();log(`ENTRY BLOCKED: sudah ada posisi ${paperPos.side} ${paperPos.symbol}`);return false}
