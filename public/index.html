@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><title>ilham novandi — Futures Command Center</title>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V46: MOMENTUM 5-CANDLE BEST-PAIR HUNTER -->
+<title>ilham novandi — Futures Command Center</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root{--bg:#060a10;--panel:#0c131e;--panel2:#101a27;--line:#1b2a3d;--text:#e9f0f8;--muted:#7f90a6;--green:#19d59a;--red:#ff5c72;--yellow:#f4c44f;--cyan:#4de1ff;--blue:#63a8ff;--purple:#a77bff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 500px at 70% -10%,#122844 0%,var(--bg) 58%);color:var(--text);font:13px/1.45 Inter,system-ui,Arial,sans-serif}button,input,select{font:inherit}button{cursor:pointer}.install-note{position:fixed;left:12px;right:12px;bottom:12px;z-index:100;background:#0c1825ee;border:1px solid #1b2a3d;border-radius:12px;padding:10px;box-shadow:0 12px 40px #0008;display:none}.top{position:sticky;top:0;z-index:20;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#08101aee;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.brand{font-size:18px;font-weight:850}.brand span{color:var(--cyan)}.status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 14px var(--green)}.mode,.pill{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 9px;color:var(--yellow);font-size:11px}.wrap{max-width:1900px;margin:auto;padding:12px;display:grid;grid-template-columns:265px minmax(500px,1fr) 355px;gap:12px}.panel{background:linear-gradient(180deg,#0d1622,#09111b);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 10px 30px #0005}.phead{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:800;display:flex;justify-content:space-between;align-items:center}.pbody{padding:11px}.section{margin-top:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.kv{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #172333}.muted{color:var(--muted)}.up{color:var(--green)}.down{color:var(--red)}.yellow{color:var(--yellow)}.btn{border:1px solid var(--line);background:#111c2a;color:var(--text);border-radius:8px;padding:7px 9px}.btn:hover{border-color:#42617f}.btn.active{background:#183653;border-color:#4e83b1}.buy{background:#0a4b3a;border-color:#147d5d;color:#7affd6}.sell{background:#571c2b;border-color:#913248;color:#ffb3bf}.danger{background:#531923;border-color:#8d3040}.cyan{border-color:#1c7285;background:#0d2730}.form{display:grid;gap:7px}.form input,.form select{width:100%;background:#09111b;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}.symbols{max-height:500px;overflow:auto}.sym{padding:9px;border-bottom:1px solid #172333;display:flex;justify-content:space-between;cursor:pointer}.sym:hover,.sym.active{background:#142438}.score{font-size:30px;font-weight:900}.bar{height:7px;background:#172433;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}.chartbox{height:575px;position:relative}.chart{width:100%;height:100%}.overlay{position:absolute;top:9px;left:9px;right:9px;z-index:3;display:flex;gap:6px;flex-wrap:wrap}.tag{padding:5px 8px;border-radius:7px;border:1px solid var(--line);background:#07101ddd;font-size:11px}.charttools{position:absolute;bottom:8px;left:8px;z-index:4;display:flex;gap:5px;flex-wrap:wrap}.tradegrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.tradegrid .btn{padding:11px}.metricgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.metric{background:#0a121d;border:1px solid var(--line);border-radius:9px;padding:9px}.metric b{display:block;font-size:16px}.logs{max-height:185px;overflow:auto;font:11px ui-monospace,monospace}.log{padding:5px 0;border-bottom:1px dashed #1b2a3d}.tabs{display:flex;gap:6px;overflow:auto;padding:8px;border-bottom:1px solid var(--line)}.tab{white-space:nowrap}.edu{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.card{background:#0a121d;border:1px solid var(--line);border-radius:9px;padding:9px}.card b{display:block;margin-bottom:3px}.dangerbox{border:1px solid #7c2938;background:#32131a;border-radius:9px;padding:9px}.goodbox{border:1px solid #176c53;background:#0a2b22;border-radius:9px;padding:9px}.warning{border:1px solid #765f25;background:#2c2410;border-radius:9px;padding:9px}.backtest{display:grid;grid-template-columns:230px 1fr;gap:10px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:7px;border-bottom:1px solid var(--line);text-align:left}.small{font-size:11px}@media(max-width:1250px){.wrap{grid-template-columns:220px 1fr}.right{grid-column:1/-1}.edu{grid-template-columns:repeat(2,1fr)}}@media(max-width:820px){.wrap{grid-template-columns:1fr}.right{grid-column:auto}.chartbox{height:450px}.metricgrid{grid-template-columns:1fr 1fr}.edu{grid-template-columns:1fr}.backtest{grid-template-columns:1fr}.top{height:auto;min-height:64px}}
@@ -114,6 +115,28 @@ function log(s){const e=document.createElement('div');e.className='log';e.textCo
 function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
 function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
 function sr(cs=candles){let h=[],l=[];for(let i=2;i<cs.length-2;i++){if(cs[i].high>cs[i-1].high&&cs[i].high>cs[i+1].high)h.push(cs[i].high);if(cs[i].low<cs[i-1].low&&cs[i].low<cs[i+1].low)l.push(cs[i].low)}let p=cs.at(-1)?.close||0;let resistance=h.filter(x=>x>p).sort((a,b)=>a-b)[0]||Math.max(...cs.slice(-40).map(x=>x.high));let support=l.filter(x=>x<p).sort((a,b)=>b-a)[0]||Math.min(...cs.slice(-40).map(x=>x.low));return{support,resistance}}
+function profitOpportunity(a, quote={}){
+ const dir=a.bias==='LONG'?1:a.bias==='SHORT'?-1:0;
+ if(!dir)return {edge:-Infinity,opportunity:-Infinity,signal:false};
+ const cs=candles;
+ const c=a.c, p1=cs.at(-2), p3=cs.at(-4), p5=cs.at(-6);
+ if(!p1||!p3||!p5)return {edge:-Infinity,opportunity:-Infinity,signal:false};
+ const atr=Math.max(a.A,Math.abs(c.close)*0.0005,1e-12);
+ const slope3=dir*(c.close-p3.close)/atr;
+ const slope5=dir*(c.close-p5.close)/atr;
+ const bodyImpulse=dir*(c.close-c.open)/atr;
+ const emaAlign=dir*(c.close-a.e)/atr;
+ const emaSlope=dir*a.emaSlope;
+ const volBoost=Math.min(2,Math.max(0,Number(a.vol||0)-0.6));
+ const breakout=(dir===1&&a.breakoutLong)||(dir===-1&&a.breakoutShort);
+ const rejection=(dir===1&&a.rejectLong)||(dir===-1&&a.rejectShort);
+ const edge=slope3*0.35+slope5*0.20+bodyImpulse*0.18+emaAlign*0.12+emaSlope*0.08+volBoost*0.35+(breakout?0.9:0)+(rejection?0.45:0);
+ const immediate=dir*(c.close-p1.close)/atr;
+ const signal=(slope3>0 && (immediate>0 || bodyImpulse>0 || breakout || rejection) && emaAlign>-0.35);
+ const opportunity=edge*20 + Math.min(12,Math.max(0,immediate*6)) + Math.min(10,Math.max(0,slope3*4)) + (breakout?12:0) + (rejection?5:0) + Math.min(8,Math.max(0,(a.vol-0.8)*8));
+ return {edge,opportunity,signal,slope3,slope5,immediate};
+}
+
 function analyzeData(cs){
  if(cs.length<30)return null;
  const c=cs.at(-1),p=cs.at(-2),cl=cs.map(x=>x.close),es=ema(cl),e=es.at(-1),A=atr(cs),{support,resistance}=sr(cs);
@@ -151,7 +174,7 @@ function analyzeData(cs){
  // Score/confidence hanya untuk ranking BEST PAIR, bukan syarat entry.
  const allowed=directional;
  const slDist=Math.max(A*.8,c.close*.004),rr=2,tpDist=slDist*rr;
- return {c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr};
+ const tmp={c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr}; const po=profitOpportunity(tmp); tmp.opportunity=po.opportunity; tmp.profitSignal=po.signal; tmp.profitEdge=po.edge; return tmp;
 }
 function analyze(){return analyzeData(candles)}
 function intervalSec(){return 900}
@@ -318,40 +341,40 @@ async function scan(){
   }
   await Promise.all(Array.from({length:Math.min(HUNTER.maxConcurrent,universe.length)},worker));
   ranked.forEach(r=>{
-    const a=r.analysis, dir=r.bias==='LONG'?1:-1;
-    const impulse=Math.max(0,dir*a.momentum)*8;
-    const candle=(dir===1&&a.bull?8:dir===-1&&a.bear?8:0);
-    const ema=(dir===1&&a.c.close>=a.e?7:dir===-1&&a.c.close<=a.e?7:0);
-    const breakout=(dir===1&&a.breakoutLong?15:dir===-1&&a.breakoutShort?15:0);
-    const vol=Math.min(12,Math.max(0,(a.vol-0.8)*8));
-    const move=Math.min(15,Math.abs(r.change)*0.8);
-    r.opportunity=impulse+candle+ema+breakout+vol+move+(a.score*0.15);
+    const po=profitOpportunity(r.analysis,{change:r.change,volume:r.volume});
+    r.opportunity=po.opportunity; r.profitSignal=po.signal; r.profitEdge=po.edge; r.slope3=po.slope3; r.immediate=po.immediate;
   });
   const nowTs=Date.now();
   const activeSymbol=paperPos?.symbol; const streakLimit=Math.max(1,Number($('#cooldownLosses').value)||3);
   const forceRotateCurrent=!!(activeSymbol&&Number(symbolLossStreaks[activeSymbol]||0)>=streakLimit);
-  const eligible=ranked.filter(r=>{const cooling=symbolCooldowns[r.symbol]&&symbolCooldowns[r.symbol]>nowTs; if(cooling)return false; if(forceRotateCurrent&&r.symbol===activeSymbol)return false; return true;});
-  if(eligible.length) ranked.splice(0,ranked.length,...eligible);
-  ranked.sort((a,b)=>b.opportunity-a.opportunity || Math.abs(b.change)-Math.abs(a.change) || b.volume-a.volume);
-  const best=ranked[0]; const current=paperPos?analyze():null;
-  const active=hasValidPaperPosition(); const exitReason=active?lossExitReason(current,best):null;
-  const currentOpp=active?Number(current?.opportunity||0):0;
-  const bestOpp=Number(best?.opportunity||0);
-  const better=active&&best&&best.symbol!==paperPos.symbol&&bestOpp>=currentOpp+2;
-  const repeatLimit=Math.max(1,Number($('#cooldownLosses').value)||3);
-  const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=repeatLimit;
-  const canEnter=!active;
-  const canRotate=active&&best&&best.symbol!==paperPos.symbol&&(repeatedLoss||exitReason||better);
+  const eligible=ranked.filter(r=>{
+    const cooling=symbolCooldowns[r.symbol]&&symbolCooldowns[r.symbol]>nowTs;
+    if(cooling)return false;
+    if(forceRotateCurrent&&r.symbol===activeSymbol)return false;
+    return r.profitSignal===true && Number(r.opportunity)>0;
+  });
+  eligible.sort((a,b)=>b.opportunity-a.opportunity || Math.abs(b.change)-Math.abs(a.change) || b.volume-a.volume);
+  const best=eligible[0]; const current=paperPos?analyze():null;
+  const active=hasValidPaperPosition();
+  const currentPO=active?profitOpportunity(current):{opportunity:-Infinity,signal:false};
+  const currentOpp=Number(currentPO.opportunity||-Infinity);
+  const bestOpp=Number(best?.opportunity||-Infinity);
+  const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=streakLimit;
+  const materiallyBetter=!!(best&&best.symbol!==paperPos.symbol&&best.profitSignal&&bestOpp>currentOpp+1);
+  const currentLosing=active&&currentPaperPnl(current?.c?.close||paperPos.entry)<0;
+  const canEnter=!active&&!!best;
+  const canRotate=active&&best&&best.symbol!==paperPos.symbol&&((repeatedLoss&&best.profitSignal)||(currentLosing&&materiallyBetter));
   if(best&&(canEnter||canRotate)){
    const oldSymbol=paperPos?.symbol;
-   if(active){const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);closePaper(mark,livePnl);log(`HUNTER EXIT → ${oldSymbol||symbol} · ${exitReason||'BEST PAIR ROTATION'} · ${fmtIDR(livePnl)}`);}
+   if(active){const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);closePaper(mark,livePnl,canRotate?'BEST PROFIT OPPORTUNITY ROTATE':'AUTO EXIT');log(`HUNTER EXIT → ${oldSymbol||symbol} → ${best.symbol} · ${fmtIDR(livePnl)}`);}
    await switchSymbol(best.symbol); const fresh=analyze();
-   if(fresh&&fresh.bias===best.bias&&fresh.bias!=='NEUTRAL'){const reopened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh,{hunter:true});if(reopened){lastHunterSymbol=best.symbol;lastHunterCandle=fresh.c.time;$('#scanState').textContent=`BEST ${best.symbol} · AUTO ${fresh.bias} ENTRY`; log(`BEST PAIR → ${best.symbol} ${fresh.bias} @ ${fmtP(fresh.c.close)} | rank ${fresh.score.toFixed(0)}`);}}
-  }else if(active&&exitReason){
-   const mark=current?.c.close||paperPos.entry;const livePnl=currentPaperPnl(mark);const oldSymbol=paperPos.symbol;closePaper(mark,livePnl);$('#scanState').textContent='EXIT · RESCAN BEST PAIR';log(`AUTO EXIT → ${oldSymbol} · ${exitReason} · ${fmtIDR(livePnl)}`);
+   const freshPO=fresh?profitOpportunity(fresh):null;
+   if(fresh&&fresh.bias===best.bias&&fresh.bias!=='NEUTRAL'&&freshPO?.signal){const reopened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh,{hunter:true});if(reopened){lastHunterSymbol=best.symbol;lastHunterCandle=fresh.c.time;$('#scanState').textContent=`BEST ${best.symbol} · AUTO ${fresh.bias} ENTRY`; log(`BEST PROFIT PAIR → ${best.symbol} ${fresh.bias} @ ${fmtP(fresh.c.close)} | opportunity ${freshPO.opportunity.toFixed(1)}`);}}
+  }else if(active&&repeatedLoss){
+   $('#scanState').textContent=`HOLD ${paperPos.symbol} · mencari pair profit`;
   }else if(best){
    $('#scanState').textContent=active?`HOLD ${paperPos.symbol} · BEST ${best.symbol} ${best.score.toFixed(0)} · ${fmtIDR(currentPaperPnl(current?.c?.close||paperPos.entry))}`:`BEST ${best.symbol} ${best.bias} · ENTRY READY`;
-  }else $('#scanState').textContent=`NO DIRECTION · ${scanStats.ok}/${scanStats.total} parsed`;
+  }else $('#scanState').textContent=`NO PROFIT SETUP · ${scanStats.ok}/${scanStats.total} parsed`;
  }catch(e){log('Scanner error: '+e.message);$('#scanState').textContent='SCAN ERROR · '+e.message} finally{hunterBusy=false}
 }
 let fastHunterBusy=false;async function maybeFastHunter(){return;}
@@ -374,7 +397,7 @@ function syncPaperStateUI(a=null){
   if(statusEl){statusEl.className='warning';statusEl.textContent=`POSISI AKTIF · ${p.side} ${p.symbol} · Entry ${fmtTradeP(p.entry)}`;}
   return true;
 }
-function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(lossStreak>=Number($('#cooldownLosses').value))return['cooldown consecutive loss'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
+function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
 function positionSize(price,sl){let risk=accountEquity*Number($('#risk').value)/100;let dist=Math.abs(price-sl);return dist?risk/dist:Number($('#qty').value)}
 function openPaper(side,forcedAnalysis=null,opts={}){
   if(hasValidPaperPosition()){syncPaperStateUI();log(`ENTRY BLOCKED: sudah ada posisi ${paperPos.side} ${paperPos.symbol}`);return false}
