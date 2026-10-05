@@ -1,3 +1,6 @@
+# ilham novandi — V39 Best Pair Scanner
+
+15M-only Binance Futures paper terminal. V39 focuses on Best Pair scanning: no minimum confidence gate; confidence is ranking only. The Hunter scans a broader universe, ranks directional opportunities, switches only to a materially better pair, and performs switch + entry atomically. Profit giveback, SL/TP, risk guard, loss rotation and pair cooldown remain.
 # ilham novandi — Futures Command Center
 
 Vercel-ready Binance Futures dashboard focused on **15-minute analysis only**.
