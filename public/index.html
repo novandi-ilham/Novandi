@@ -50,7 +50,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],lossCooldowns={};
 const LOSS_REENTRY_COOLDOWN_MS=15*60*1000;
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={minConfidence:0,switchAdvantage:2,scanMs:1800,candidateCount:36,cooldownMs:250,previewSwitchMs:700,previewAdvantage:0,klinesCacheMs:6000};
+const HUNTER={switchAdvantage:5,scanMs:1200,candidateCount:30,cooldownMs:150,klinesCacheMs:7000,entryRefreshMs:900};
 const scanKlineCache=new Map();
 let tickerCache={at:0,data:null};
 async function getScannerTicker(){
@@ -203,7 +203,6 @@ function applyLiveKline(k){
   const ev=ema(candles.map(x=>x.close)).at(-1);
   if(Number.isFinite(ev))emaSeries.update({time:c.time,value:ev});
   updateUI();
-  if(auto&&!killed&&mode==='paper'&&!hasValidPaperPosition()) maybeFastHunter();
   renderTradeVisuals();
   $('#conn').textContent='BINANCE WS LIVE';
 }
@@ -262,22 +261,13 @@ async function switchSymbol(s){if(s===symbol&&candles.length)return;try{drawings
 function drawSR(){drawings.forEach(x=>x.remove?.());drawings=[];let {support,resistance}=sr();for(const v of [support,resistance]){let l=chart.addLineSeries({color:'#4de1ff77',lineWidth:1,lineStyle:2,lastValueVisible:true,priceLineVisible:false});l.setData(candles.slice(-120).map(c=>({time:c.time,value:v})));drawings.push(l)}}
 function drawClick(ev){if(tool==='none')return;let r=$('#chart').getBoundingClientRect(),x=ev.clientX-r.left,t=chart.timeScale().coordinateToTime(x),p=series.coordinateToPrice(ev.clientY-r.top);if(!t||p==null)return;drawings.push({x,p});if(drawings.length<2)return;let a=drawings.at(-2),b=drawings.at(-1),t1=chart.timeScale().coordinateToTime(a.x),t2=chart.timeScale().coordinateToTime(b.x);let l=chart.addLineSeries({color:tool==='fib'?'#f4c44f':'#63a8ff',lineWidth:2});l.setData([{time:t1,value:a.p},{time:t2,value:b.p}]);drawings.push(l);if(tool==='fib'){[.236,.382,.5,.618,.786].forEach(r=>{let f=chart.addLineSeries({color:'#f4c44f55',lineWidth:1,lineStyle:2});f.setData([{time:t1,value:a.p+(b.p-a.p)*r},{time:t2,value:a.p+(b.p-a.p)*r}]);drawings.push(f)})}tool='none';$$('[data-tool]').forEach(x=>x.classList.remove('active'));$('[data-tool="none"]').classList.add('active')}
 function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=paperPos,dir=p.side==='BUY'?1:-1,raw=(price-p.entry)*p.qty*dir,fee=(Math.abs(p.entry*p.qty)+Math.abs(price*p.qty))*Number($('#fee').value)/100,slip=Math.abs(price*p.qty)*Number($('#slippage').value)/100;return (raw-fee-slip)*IDR}
-function hunterAllowed(a){
- if(!a||!Number.isFinite(a.score))return false;
- if(a.bias==='NEUTRAL')return false;
- const directionOk=(a.bias==='LONG'&&a.momentum>0)||(a.bias==='SHORT'&&a.momentum<0);
- if(!directionOk)return false;
- if(a.bias==='LONG'&&a.c.close<a.e)return false;
- if(a.bias==='SHORT'&&a.c.close>a.e)return false;
- return true;
-}
 function lossExitReason(current,best){
  if(!hasValidPaperPosition()||!$('#autoRotate')?.checked)return null;
  const p=paperPos,price=current?.c?.close||p.entry,pnl=currentPaperPnl(price);
  const maxLoss=Number(p.hardLoss||riskBudgetIDR(Number(p.margin)||paperMargin()));
  const sameBias=current?.bias===(p.side==='BUY'?'LONG':'SHORT');
  const currentValid=hunterAllowed(current)&&sameBias;
- const better=best&&best.symbol!==p.symbol&&hunterAllowed(best)&&best.score>=((current?.score||0)+HUNTER.switchAdvantage);
+ const better=best&&best.symbol!==p.symbol&&hunterAllowed(best)&&(best.opportunity||best.score)>=((current?.score||0)+HUNTER.switchAdvantage);
  const lossSwitchThreshold=Math.max(0,maxLoss*0.20);
  const givebackPct=Math.min(100,Math.max(1,Number($('#profitGiveback').value)||10))/100;
  const peak=Number(p.peakPnl||0);
@@ -287,134 +277,138 @@ function lossExitReason(current,best){
  if(pnl<0&&better)return `BETTER PAIR · ${best.symbol} ${best.score.toFixed(0)}%`;
  return null;
 }
+function opportunityScore(a,x){
+ if(!a||a.bias==='NEUTRAL')return -Infinity;
+ const dir=a.bias==='LONG'?1:-1;
+ const momentum=Math.max(0,Math.min(20,Math.abs(a.momentum)*7));
+ const ema=a.bias==='LONG'?(a.c.close>=a.e?14:0):(a.c.close<=a.e?14:0);
+ const candle=(a.bias==='LONG'&&a.bull?10:0)+(a.bias==='SHORT'&&a.bear?10:0);
+ const breakout=(a.bias==='LONG'&&a.breakoutLong?22:0)+(a.bias==='SHORT'&&a.breakoutShort?22:0);
+ const volume=Math.max(0,Math.min(12,(a.vol||0)*5));
+ const slope=(a.bias==='LONG'&&a.emaSlope>0?8:0)+(a.bias==='SHORT'&&a.emaSlope<0?8:0);
+ const move=Math.max(0,Math.min(14,Math.abs(Number(x?.change||0))*0.8));
+ const extreme=a.regime==='EXTREME VOLATILITY'?-18:0;
+ return momentum+ema+candle+breakout+volume+slope+move+extreme;
+}
+function hunterAllowed(a){
+ if(!a||!Number.isFinite(a.score)||a.bias==='NEUTRAL')return false;
+ const directionOk=(a.bias==='LONG'&&a.momentum>0)||(a.bias==='SHORT'&&a.momentum<0);
+ if(!directionOk)return false;
+ if(a.regime==='EXTREME VOLATILITY')return false;
+ if(a.bias==='LONG'&&a.c.close<a.e)return false;
+ if(a.bias==='SHORT'&&a.c.close>a.e)return false;
+ return true;
+}
+async function executeBestOpportunity(rankedAll){
+ const now=Date.now();
+ const viable=rankedAll.filter(x=>hunterAllowed(x)&&!(Number(lossCooldowns[x.symbol]||0)>now));
+ viable.forEach(x=>x.opportunity=opportunityScore(x.analysis,x));
+ viable.sort((a,b)=>b.opportunity-a.opportunity);
+ const best=viable[0]||null;
+ const active=hasValidPaperPosition();
+ const current=active?analyze():null;
+ const currentScore=current?.score||0;
+ const currentSymbol=paperPos?.symbol||symbol;
+ const currentCandidate=viable.find(x=>x.symbol===currentSymbol)||null;
+ if(active){
+   const pnl=currentPaperPnl(current?.c?.close||paperPos.entry);
+   const bestOther=viable.find(x=>x.symbol!==currentSymbol)||null;
+   const currentOpportunity=currentCandidate?.opportunity||0;
+   const superior=bestOther&&bestOther.opportunity>=currentOpportunity+HUNTER.switchAdvantage;
+   const peak=Number(paperPos.peakPnl||0);
+   const givebackPct=Math.min(100,Math.max(1,Number($('#profitGiveback').value)||10))/100;
+   const giveback=peak>0&&pnl>0&&pnl<=peak*(1-givebackPct);
+   const hardLoss=Number(paperPos.hardLoss||riskBudgetIDR(Number(paperPos.margin)||paperMargin()));
+   const currentValid=hunterAllowed(current);
+   const rotateLoss=pnl<0&&(Math.abs(pnl)>=Math.max(0,hardLoss*0.20)||!currentValid||superior);
+   const exitReason=giveback?'PROFIT GIVEBACK':rotateLoss?'BEST PAIR / LOSS ROTATE':null;
+   if(exitReason && (bestOther||giveback)){
+     const old=paperPos.symbol;
+     const isGiveback=exitReason==='PROFIT GIVEBACK';
+     let target=isGiveback&&currentCandidate&&(!bestOther||currentCandidate.opportunity>=bestOther.opportunity-HUNTER.switchAdvantage)?currentCandidate:bestOther;
+     if(target){
+       closePaper(current?.c.close||paperPos.entry,pnl,isGiveback?'PROFIT GIVEBACK':'AUTO ROTATE');
+       if(pnl<0){lossCooldowns[old]=Date.now()+LOSS_REENTRY_COOLDOWN_MS;persist()}
+       await switchSymbol(target.symbol);
+       const fresh=analyze();
+       if(fresh&&hunterAllowed(fresh)&&fresh.bias===target.bias){
+         if(openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh)){
+           $('#scanState').textContent=`BEST → ${target.symbol} · ${fresh.bias} · ENTRY`;
+           log(`BEST PAIR ROTATE+ENTRY → ${old} → ${target.symbol} · ${fresh.bias} · opp ${target.opportunity.toFixed(1)}`);
+         }
+       }
+       return;
+     }
+   }
+   $('#scanState').textContent=`HOLD ${currentSymbol} · ${fmtIDR(pnl)} · BEST ${best?.symbol||'—'}`;
+   return;
+ }
+ if(!best){
+   $('#scanState').textContent='HUNTING · cari arah 15M';
+   return;
+ }
+ // Flat: the best pair switch and entry are ONE atomic hunting action.
+ if(best.symbol!==symbol){
+   const from=symbol;
+   await switchSymbol(best.symbol);
+   const fresh=analyze();
+   if(fresh&&hunterAllowed(fresh)&&fresh.bias===best.bias){
+     if(openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh)){
+       lastHunterSymbol=best.symbol; lastHunterCandle=fresh.c.time;
+       $('#scanState').textContent=`BEST ${best.symbol} · ${fresh.bias} · ENTRY`;
+       log(`BEST PAIR SWITCH+ENTRY → ${from} → ${best.symbol} · ${fresh.bias} @ ${fmtP(fresh.c.close)}`);
+     }
+   }
+ }else{
+   const fresh=analyze();
+   if(fresh&&hunterAllowed(fresh)&&openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh)){
+     lastHunterSymbol=best.symbol; lastHunterCandle=fresh.c.time;
+     $('#scanState').textContent=`BEST ${best.symbol} · ${fresh.bias} · ENTRY`;
+     log(`BEST PAIR ENTRY → ${best.symbol} · ${fresh.bias} @ ${fmtP(fresh.c.close)}`);
+   }
+ }
+}
 async function scan(){
  if(hunterBusy)return; hunterBusy=true;
  try{
   const d=await getScannerTicker();
-  const liquid=d.filter(x=>x.symbol.endsWith('USDT')&&!x.symbol.includes('_')&&+x.quoteVolume>5e6&&x.symbol!=='USDCUSDT');
+  const liquid=d.filter(x=>x.symbol?.endsWith('USDT')&&!x.symbol.includes('_')&&+x.quoteVolume>2e6&&x.symbol!=='USDCUSDT');
   const sorted=[...liquid].sort((a,b)=>Math.abs(+b.priceChangePercent)-Math.abs(+a.priceChangePercent));
   const volume=[...liquid].sort((a,b)=>+b.quoteVolume-+a.quoteVolume);
-  const universe=[...new Map([...sorted.slice(0,24),...volume.slice(0,24)].map(x=>[x.symbol,x])).values()]
-    .sort((a,b)=>(Math.abs(+b.priceChangePercent)+Math.log10(1+Math.max(0,+b.quoteVolume)/1e6))-(Math.abs(+a.priceChangePercent)+Math.log10(1+Math.max(0,+a.quoteVolume)/1e6)))
-    .slice(0,HUNTER.candidateCount);
-  const g=[...liquid].sort((a,b)=>+b.priceChangePercent-+a.priceChangePercent).slice(0,5),l=[...liquid].sort((a,b)=>+a.priceChangePercent-+b.priceChangePercent).slice(0,5);
+  const universe=[...new Map([...sorted.slice(0,30),...volume.slice(0,30)].map(x=>[x.symbol,x])).values()].slice(0,HUNTER.candidateCount);
   $('#symbols').innerHTML=universe.map(x=>`<div class="sym ${x.symbol===symbol?'active':''}" data-s="${x.symbol}"><div><b>${x.symbol}</b><div class="muted">Vol ${(Number(x.quoteVolume)/1e6).toFixed(1)}M</div></div><b class="${+x.priceChangePercent>=0?'up':'down'}">${+x.priceChangePercent>=0?'+':''}${(+x.priceChangePercent).toFixed(2)}%</b></div>`).join('');
   $$('.sym').forEach(e=>e.onclick=()=>switchSymbol(e.dataset.s));
-  $('#leaders').innerHTML='<div class="muted">Short Top Gainers</div>'+g.map(x=>`<div class="kv"><span>${x.symbol}</span><b class="up">+${(+x.priceChangePercent).toFixed(2)}%</b></div>`).join('')+'<div class="muted" style="margin-top:8px">Long Top Losers</div>'+l.map(x=>`<div class="kv"><span>${x.symbol}</span><b class="down">${(+x.priceChangePercent).toFixed(2)}%</b></div>`).join('');
   $('#scanState').textContent='SCANNING 15M';
   if(auto&&!killed&&mode==='paper'&&Date.now()-lastSwitchAt>=HUNTER.cooldownMs){
    const rankedAll=[];
    const results=await Promise.allSettled(universe.map(async x=>{
-      const now=Date.now(), cached=scanKlineCache.get(x.symbol);
-      let cs=cached&&now-cached.at<HUNTER.klinesCacheMs?cached.cs:null;
-      if(!cs){
-        try{
-          let q=await fetch(`/api/market/klines?symbol=${x.symbol}&limit=90&_=${now}`,{cache:'no-store'});
-          if(!q.ok)throw Error(`Kline ${q.status}`);
-          let kd=await q.json();
-          if(!Array.isArray(kd)||kd.length<25)throw Error('Kline data kosong');
-          cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
-          scanKlineCache.set(x.symbol,{at:now,cs});
-        }catch(err){
-          const stale=scanKlineCache.get(x.symbol);
-          if(stale?.cs?.length>=25){cs=stale.cs;}
-          else return null;
-        }
-      }
-      let a=analyzeData(cs);
-      if(!a)return null;
-      return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume,allowed:a.allowed,reasons:a.reasons||[]};
+    const now=Date.now(),cached=scanKlineCache.get(x.symbol);
+    let cs=cached&&now-cached.at<HUNTER.klinesCacheMs?cached.cs:null;
+    if(!cs){
+      try{
+       const q=await fetch(`/api/market/klines?symbol=${x.symbol}&limit=90&_=${now}`,{cache:'no-store'});
+       if(!q.ok)throw Error(`Kline ${q.status}`);
+       const kd=await q.json();
+       if(!Array.isArray(kd)||kd.length<25)throw Error('Kline kosong');
+       cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
+       scanKlineCache.set(x.symbol,{at:now,cs});
+      }catch(err){const stale=scanKlineCache.get(x.symbol);if(stale?.cs?.length>=25)cs=stale.cs;else return null;}
+    }
+    const a=analyzeData(cs); if(!a)return null;
+    return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume,allowed:hunterAllowed(a)};
    }));
    results.forEach(r=>{if(r.status==='fulfilled'&&r.value)rankedAll.push(r.value)});
-   rankedAll.sort((a,b)=>b.score-a.score);
-   const ranked=rankedAll.filter(x=>hunterAllowed(x));
-   const best=ranked[0]||null;
-   const bestAny=rankedAll[0]||null;
-   const current=paperPos?analyze():null; const currentScore=current?.score||0;
-   const active=hasValidPaperPosition(); const exitReason=active?lossExitReason(current,best):null;
-   const isProfitGiveback=!!exitReason&&exitReason.startsWith('PROFIT GIVEBACK');
-   const currentSymbol=paperPos?.symbol||symbol;
-   const now=Date.now();
-   const alternates=ranked.filter(x=>x.symbol!==currentSymbol && !(Number(lossCooldowns[x.symbol]||0)>now));
-   const bestAlternate=alternates.find(x=>hunterAllowed(x))||null;
-   const currentCandidate=ranked.find(x=>x.symbol===currentSymbol)||null;
-   let target=best;
-   if(active&&exitReason){
-     const isGiveback=exitReason.startsWith('PROFIT GIVEBACK');
-     // Profit-lock may re-enter the same pair, but only if it is still a valid
-     // hunter candidate and remains competitive after the fresh ranking.
-     const samePairReentry=isGiveback && currentCandidate && hunterAllowed(currentCandidate) &&
-       (!bestAlternate || currentCandidate.score >= bestAlternate.score-HUNTER.switchAdvantage);
-     target=samePairReentry?currentCandidate:bestAlternate;
-   } else if(!active){
-     target=best&&!(Number(lossCooldowns[best.symbol]||0)>now)?best:null;
-   }
-   const canRotate=active&&!!exitReason&&!!target;
-   const canEnter=!active&&!!target;
-   if(target&&(canEnter||canRotate)){
-    const oldSymbol=paperPos?.symbol;
-    if(active&&exitReason){
-      const mark=current?.c.close||paperPos.entry; const livePnl=currentPaperPnl(mark);
-      closePaper(mark,livePnl,exitReason.startsWith('PROFIT GIVEBACK')?'PROFIT GIVEBACK':'AUTO ROTATE');
-      log(`HUNTER EXIT → ${oldSymbol||symbol} · ${exitReason} · ${fmtIDR(livePnl)}`);
-      if(livePnl<0){lossCooldowns[oldSymbol]=Date.now()+LOSS_REENTRY_COOLDOWN_MS;persist();log(`LOSS ROTATE → ${oldSymbol} diblokir ${LOSS_REENTRY_COOLDOWN_MS/60000} menit, cari pair lain`)}
-      if(isProfitGiveback&&target.symbol===oldSymbol){lastSwitchAt=Date.now();log(`PROFIT LOCK → ${oldSymbol} tetap eligible untuk re-entry jika setup masih valid`)}
-    }
-    await switchSymbol(target.symbol); const fresh=analyze();
-    if(fresh&&hunterAllowed(fresh)&&fresh.bias===target.bias){
-      const reopened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh);
-      if(reopened){lastHunterSymbol=target.symbol;lastHunterCandle=fresh.c.time;$('#scanState').textContent=isProfitGiveback&&target.symbol===oldSymbol?'RE-ENTRY '+fresh.bias:`ROTATE ENTRY ${fresh.bias}`;log(`${isProfitGiveback&&target.symbol===oldSymbol?'AUTO RE-ENTRY':'AUTO ROTATE ENTRY'} → ${target.symbol} ${fresh.bias} @ ${fmtP(fresh.c.close)} | ${fresh.score.toFixed(0)}%`)}
-    }
-   } else if(active&&exitReason){
-     $('#scanState').textContent='EXIT · scan ulang semua pair';
-     const mark=current?.c.close||paperPos.entry; const livePnl=currentPaperPnl(mark); const oldSymbol=paperPos.symbol;
-     closePaper(mark,livePnl,exitReason.startsWith('PROFIT GIVEBACK')?'PROFIT GIVEBACK':'AUTO ROTATE');
-     if(livePnl<0){lossCooldowns[oldSymbol]=Date.now()+LOSS_REENTRY_COOLDOWN_MS;persist()}
-     log(`AUTO EXIT → ${oldSymbol} · ${exitReason} · ${fmtIDR(livePnl)} · SCAN ULANG SEMUA PAIR`);
-   } else if(active){
-     $('#scanState').textContent=`HOLD ${paperPos.symbol} · ${currentScore.toFixed(0)}% · ${fmtIDR(currentPaperPnl(current?.c?.close||paperPos.entry))}`;
-   } else if(bestAny){
-     // IMPORTANT: flat engine must keep scouting even when the best candidate is below 70%.
-     // The old implementation only ranked allowed candidates, so it could stay forever on
-     // the last chart (e.g. TST 22%) while silently scanning in the background.
-     const age=Date.now()-lastSwitchAt;
-     const shouldPreviewSwitch=bestAny.symbol!==symbol && bestAny.score>=currentScore+HUNTER.previewAdvantage && age>=HUNTER.previewSwitchMs;
-     if(shouldPreviewSwitch){
-       const from=symbol;
-       await switchSymbol(bestAny.symbol);
-       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · belum valid`;
-       log(`SCOUT SWITCH → ${from} → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · cari peluang`);
-     }else{
-       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · ${best?'valid':'menunggu arah naik/turun'}`;
-       if(bestAny.symbol!==symbol||bestAny.score>=HUNTER.minConfidence) log(`SCOUT → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · ${best?'SIAP ENTRY':'belum memenuhi '+HUNTER.minConfidence+'%'}`);
-     }
-   } else {
-     $('#scanState').textContent='SCAN · menunggu data';
-   }
+   await executeBestOpportunity(rankedAll);
+   $('#scanState').title=`${rankedAll.length}/${universe.length} pair dianalisis`;
   }
- }catch(e){log('Scanner error: '+e.message);$('#scanState').textContent='ERROR'} finally{hunterBusy=false}
+ }catch(e){log('Scanner degraded: '+e.message);$('#scanState').textContent='HUNTING · data retry';}
+ finally{hunterBusy=false}
 }
-let fastHunterBusy=false;async function maybeFastHunter(){if(fastHunterBusy||!auto||killed||mode!=='paper'||hasValidPaperPosition())return;fastHunterBusy=true;try{const a=analyze();if(hunterAllowed(a)&&a.c.time!==lastHunterCandle){openPaper(a.bias==='LONG'?'BUY':'SELL',a);lastHunterCandle=a.c.time;log(`FAST 15M TRIGGER → ${symbol} ${a.bias} ${a.score.toFixed(0)}%`)}}finally{fastHunterBusy=false}}
-function hasValidPaperPosition(){return !!(paperPos&&typeof paperPos==='object'&&paperPos.symbol&&['BUY','SELL'].includes(paperPos.side)&&Number.isFinite(Number(paperPos.entry))&&Number.isFinite(Number(paperPos.qty))&&Number(paperPos.qty)>0&&Number.isFinite(Number(paperPos.sl))&&Number.isFinite(Number(paperPos.tp)))}
-function syncPaperStateUI(a=null){
-  if(!hasValidPaperPosition()){
-    if(paperPos){paperPos=null;persist()}
-    renderPosition();
-    const reasons=a?.reasons||[];
-    const statusEl=$('#engineStatus');
-    if(statusEl){
-      statusEl.className=(a?.allowed?'goodbox':'dangerbox');
-      statusEl.textContent=a?.allowed?'READY · siap entry':'NO TRADE · '+(reasons.length?reasons.join(', '):'menunggu setup');
-    }
-    return false;
-  }
-  const p=paperPos;
-  renderPosition();
-  const statusEl=$('#engineStatus');
-  if(statusEl){statusEl.className='warning';statusEl.textContent=`POSISI AKTIF · ${p.side} ${p.symbol} · Entry ${fmtTradeP(p.entry)}`;}
-  return true;
+let fastHunterBusy=false;async function maybeFastHunter(){
+ if(fastHunterBusy||!auto||killed||mode!=='paper'||hasValidPaperPosition())return;
+ fastHunterBusy=true;try{const a=analyze();if(hunterAllowed(a)&&openPaper(a.bias==='LONG'?'BUY':'SELL',a)){lastHunterCandle=a.c.time;log(`FAST 15M ENTRY → ${symbol} ${a.bias}`)}}finally{fastHunterBusy=false}
 }
-function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(lossStreak>=Number($('#cooldownLosses').value))return['cooldown consecutive loss'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
+function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
 function riskBudgetIDR(margin){const riskPct=Math.max(0,Number($('#risk').value)||0)/100;const floatPct=Math.max(0,Number($('#maxFloatLoss').value)||0)/100;const riskCap=margin*riskPct;const floatCap=margin*floatPct;return floatCap>0?Math.min(riskCap||floatCap,floatCap):riskCap}
 function positionSize(price,sl){let risk=accountEquity*Number($('#risk').value)/100;let dist=Math.abs(price-sl);return dist?risk/dist:Number($('#qty').value)}
 function openPaper(side,forcedAnalysis=null){
