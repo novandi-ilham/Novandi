@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V52: PROFIT-FIRST ENTRY FILTER + NO-CHASE ROTATION + HARD RISK LOCK -->
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V54: LIVE MOMENTUM ENTRY + ANTI-INSTANT-LOSS ROTATION + HARD RISK LOCK -->
 <title>ilham novandi — Futures Command Center</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -50,7 +50,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let latestPriceBySymbol={}, symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={switchAdvantage:10,scanMs:1800,candidateCount:48,cooldownMs:1000,klinesCacheMs:7000,maxConcurrent:6};
+const HUNTER={switchAdvantage:14,scanMs:1500,candidateCount:48,cooldownMs:900,klinesCacheMs:1500,maxConcurrent:8};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
 async function getScanTicker(){
  const now=Date.now();
@@ -112,8 +112,8 @@ function addTradeMarker(type,p){
   if(tradeMarkers.length>50)tradeMarkers=tradeMarkers.slice(-50);
   renderTradeVisuals();
 }
-function persist(){try{localStorage.setItem('ilhamPaperState',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||1,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||1,autoRotate:$('#autoRotate').checked}))}catch{}}
-function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperState')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;paperPnl=+x.paperPnl||0;dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats=x.tradeStats||tradeStats;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory:[];tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||1;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||1;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
+function persist(){try{localStorage.setItem('ilhamPaperStateV54',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||1,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||1,autoRotate:$('#autoRotate').checked}))}catch{}}
+function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV54')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;paperPnl=+x.paperPnl||0;dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats=x.tradeStats||tradeStats;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory:[];tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||1;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||1;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
 function log(s){const e=document.createElement('div');e.className='log';e.textContent=new Date().toLocaleTimeString('id-ID')+' · '+s;$('#logs').prepend(e)}
 function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
 function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
@@ -124,36 +124,43 @@ function profitOpportunity(a, quote={}){
  const cs=Array.isArray(a?._cs)&&a._cs.length>=6?a._cs:candles;
  const c=a.c, p1=cs.at(-2), p3=cs.at(-4), p5=cs.at(-6);
  if(!p1||!p3||!p5)return {edge:-Infinity,opportunity:-Infinity,signal:false,entryReady:false};
- const atr=Math.max(a.A,Math.abs(c.close)*0.0005,1e-12);
- const slope3=dir*(c.close-p3.close)/atr;
- const slope5=dir*(c.close-p5.close)/atr;
- const bodyImpulse=dir*(c.close-c.open)/atr;
- const emaAlign=dir*(c.close-a.e)/atr;
+ const A=Math.max(a.A,Math.abs(c.close)*0.0005,1e-12);
+ const slope3=dir*(c.close-p3.close)/A;
+ const slope5=dir*(c.close-p5.close)/A;
+ const bodyImpulse=dir*(c.close-c.open)/A;
+ const emaAlign=dir*(c.close-a.e)/A;
  const emaSlope=dir*a.emaSlope;
- const volBoost=Math.min(2,Math.max(0,Number(a.vol||0)-0.6));
+ const elapsed=Math.max(0.05,Math.min(1,(Date.now()/1000-c.time)/900));
+ const expectedVol=Math.max(0.05,elapsed);
+ const volRate=Number(a.vol||0)/expectedVol;
+ const volBoost=Math.min(2,Math.max(0,volRate-0.55));
  const breakout=(dir===1&&a.breakoutLong)||(dir===-1&&a.breakoutShort);
  const rejection=(dir===1&&a.rejectLong)||(dir===-1&&a.rejectShort);
- const immediate=dir*(c.close-p1.close)/atr;
+ const immediate=dir*(c.close-p1.close)/A;
+ const liveImpulse=dir*(c.close-c.open)/A;
  const extension=Math.max(0,emaAlign);
  const candleAligned=(dir===1?c.close>c.open:c.close<c.open);
  const prevAligned=(dir===1?p1.close>p1.open:p1.close<p1.open);
- const trendAligned=emaAlign>0;
- const momentumOk=dir*a.momentum>0.03;
- // Profit-first: do not require a perfect candle. Rank the strongest live 15M opportunity,
- // while still rejecting extreme volatility and late/chasing entries.
- const bodyOk=Number(a.bodyPct||0)>=0.18;
- const volumeOk=Number(a.vol||0)>=0.55;
- const structureOk=breakout||rejection||(slope3>0.12&&bodyImpulse>0.05)||(trendAligned&&immediate>0.02);
- const notChasing=extension<=2.5;
- const rangeSetup=(a.regime!=='RANGE')||breakout||rejection||((a.nearSup||a.nearRes)&&Math.abs(a.momentum)>0.12);
- const regimeOk=a.regime!=='EXTREME VOLATILITY'&&rangeSetup;
- const candleTiming=candleAligned||breakout||rejection||immediate>0.02;
+ const trendAligned=emaAlign>-0.25;
+ const momentumOk=dir*a.momentum>0.04 || liveImpulse>0.08 || immediate>0.06;
+ // Early-entry mode: a forming 15M candle can qualify before its close.
+ // Normalize volume by candle age so the engine can detect a fresh momentum ignition.
+ const earlyMomentum=liveImpulse>0.08 && immediate>0.03 && volRate>=0.45;
+ const continuation=immediate>0.05 && (candleAligned||prevAligned) && volRate>=0.4;
+ const bodyOk=Number(a.bodyPct||0)>=0.10 || earlyMomentum || breakout || rejection;
+ const volumeOk=Number(a.vol||0)>=0.30 || volRate>=0.45 || earlyMomentum;
+ const structureOk=breakout||rejection||earlyMomentum||continuation||(slope3>0.08&&bodyImpulse>0.03)||(trendAligned&&immediate>0.015);
+ const notChasing=extension<=2.0 && !(liveImpulse>1.4 && extension>1.15);
+ const rangeSetup=a.regime!=='EXTREME VOLATILITY' && (a.regime!=='RANGE'||breakout||rejection||earlyMomentum||continuation);
+ const regimeOk=rangeSetup;
+ const candleTiming=candleAligned||breakout||rejection||earlyMomentum||immediate>0.015;
+ // Do not require confidence. Require actual live direction/momentum and a non-chasing entry.
  const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&candleTiming;
- const edge=slope3*0.32+slope5*0.16+bodyImpulse*0.18+emaAlign*0.12+emaSlope*0.08+volBoost*0.30+(breakout?0.9:0)+(rejection?0.55:0)-(extension>1.3?(extension-1.3)*1.2:0);
- const opportunity=edge*20+Math.min(10,Math.max(0,immediate*5))+Math.min(8,Math.max(0,slope3*3))+(breakout?10:0)+(rejection?5:0)+Math.min(6,Math.max(0,(a.vol-0.8)*6));
- const profitEdge=edge + (breakout?.35:0) + (rejection?.2:0) + (trendAligned?.12:0) + (momentumOk?.08:0);
- const profitSignal=signal && profitEdge>0.18 && opportunity>2;
- return {edge,profitEdge,opportunity,signal:profitSignal,entryReady:profitSignal,slope3,slope5,immediate,extension,trendAligned,momentumOk,bodyOk,volumeOk,structureOk,notChasing,regimeOk};
+ const edge=slope3*0.24+slope5*0.10+bodyImpulse*0.22+emaAlign*0.10+emaSlope*0.07+volBoost*0.28+immediate*0.24+(breakout?0.8:0)+(rejection?0.45:0)+(earlyMomentum?0.65:0)+(continuation?0.35:0)-(extension>1.15?(extension-1.15)*1.0:0);
+ const opportunity=edge*22+Math.min(12,Math.max(0,immediate*7))+Math.min(10,Math.max(0,liveImpulse*7))+Math.min(8,Math.max(0,slope3*3))+(breakout?9:0)+(rejection?4:0)+(earlyMomentum?8:0)+(continuation?4:0)+Math.min(6,Math.max(0,(volRate-0.7)*4));
+ const profitEdge=edge+(breakout?.25:0)+(rejection?.15:0)+(earlyMomentum?.25:0)+(trendAligned?.08:0);
+ const profitSignal=signal&&profitEdge>0.10&&opportunity>1.5;
+ return {edge,profitEdge,opportunity,signal:profitSignal,entryReady:profitSignal,slope3,slope5,immediate,liveImpulse,extension,trendAligned,momentumOk,bodyOk,volumeOk,volRate,structureOk,notChasing,regimeOk,earlyMomentum,continuation};
 }
 
 function analyzeData(cs){
@@ -197,7 +204,7 @@ function analyzeData(cs){
 }
 function analyze(){return analyzeData(candles)}
 function intervalSec(){return 900}
-function updateUI(){let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'TRADE CHECK ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');latestPriceBySymbol[symbol]=a.c.close;$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;$('#candleTimer').textContent='CLOSE '+Math.max(0,Math.floor(rem))+'s';let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition()){const pp=paperPos;const livePrice=pp.symbol===symbol?a.c.close:latestPriceBySymbol[pp.symbol];if(Number.isFinite(Number(livePrice))&&Number(livePrice)>0)updatePosition(Number(livePrice));}syncPaperStateUI(a)}
+function updateUI(){let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'TRADE CHECK ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');latestPriceBySymbol[symbol]=a.c.close;$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)} · ${a.earlyMomentum?'LIVE MOMENTUM':'MOMENTUM WAIT'}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;$('#candleTimer').textContent='CLOSE '+Math.max(0,Math.floor(rem))+'s';let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition()){const pp=paperPos;const livePrice=pp.symbol===symbol?a.c.close:latestPriceBySymbol[pp.symbol];if(Number.isFinite(Number(livePrice))&&Number(livePrice)>0)updatePosition(Number(livePrice));}syncPaperStateUI(a)}
 function initChart(){
  const host=$('#chart');
  if(!host)return;
@@ -388,17 +395,22 @@ async function scan(){
   const currentOpp=Number(currentPO.opportunity); const bestOpp=Number(best?.opportunity??-Infinity);
   const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=streakLimit;
   const currentPnl=active&&current?currentPaperPnl(current.c.close):0;
-  // Pair-loss guard: count consecutive negative 15M candles for the active pair.
+  // Pair-loss guard: NEVER count the entry candle itself. The old logic could
+  // open on a live candle, see normal entry costs as a small negative PnL,
+  // and close the position on the very next scan. That created the 0%-win-rate
+  // loss cascade seen in testing. Count only a NEW 15M candle after entry.
   let lossCut=false;
   if(active&&current){
     const ct=Number(current.c.time)||0;
-    if(currentPnl<0){
+    const entryCt=Number(paperPos.entryCandleTime||0);
+    const candleAdvanced=ct>entryCt;
+    if(candleAdvanced&&currentPnl<0){
       if(Number(paperPos.negativeCandleTime||0)!==ct){
         paperPos.negativeScans=Number(paperPos.negativeScans||0)+1;
         paperPos.negativeCandleTime=ct;
         persist();
       }
-    }else{
+    }else if(currentPnl>=0){
       if(Number(paperPos.negativeScans||0)>0||Number(paperPos.negativeCandleTime||0)!==0){
         paperPos.negativeScans=0;
         paperPos.negativeCandleTime=0;
@@ -406,7 +418,7 @@ async function scan(){
       }
     }
     const negLimit=Math.max(1,Number($('#negativeScans').value)||1);
-    lossCut=Number(paperPos.negativeScans||0)>=negLimit&&currentPnl<0;
+    lossCut=candleAdvanced&&Number(paperPos.negativeScans||0)>=negLimit&&currentPnl<0;
   }
   const materiallyBetter=!!(best&&best.symbol!==activeSymbol&&best.profitSignal&&bestOpp>currentOpp+HUNTER.switchAdvantage);
   const canEnter=!active&&!!best;
@@ -481,7 +493,7 @@ function openPaper(side,forcedAnalysis=null,opts={}){
   let risk=Number($('#risk').value)/100,sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),margin=mode==='paper'?paperMargin():0,leverage=mode==='paper'?paperLeverage():Number($('#lev').value)||1,notional=mode==='paper'?margin*leverage:0,qty=mode==='paper'?(notional/IDR)/Math.max(p,0.00000001):Math.max(0.000001,Number($('#qty').value)||positionSize(p,sl));if(mode==='paper'&&margin>accountEquity+paperPnl){log(`ENTRY BLOCKED: margin ${fmtIDR(margin)} melebihi available balance`);syncPaperStateUI(a);return false;}
   if((side==='BUY'&&(sl>=p||tp<=p))||(side==='SELL'&&(sl<=p||tp>=p))){log('ENTRY BLOCKED: SL/TP tidak valid');$('#engineStatus').className='dangerbox';$('#engineStatus').textContent='NO TRADE · SL/TP tidak valid';return false}
   paperPos={symbol,side,entry:p,qty,sl,tp,initialSL:sl,be:false,partial:false,trail:false,opened:Date.now(),risk,margin,leverage,notional,entryCandleTime:a.c.time,entryScore:a.score,entryBias:a.bias,peakPnl:0,negativeScans:0,negativeCandleTime:0};
-  addTradeMarker('entry',paperPos); renderTradeVisuals(); persist(); syncPaperStateUI(a); log(`AUTO/ PAPER ${side} ${symbol} · ENTRY ${fmtTradeP(p)} · SL ${fmtTradeP(sl)} · TP ${fmtTradeP(tp)} · SCORE ${a.score.toFixed(0)}%`); return true;
+  addTradeMarker('entry',paperPos); renderTradeVisuals(); persist(); syncPaperStateUI(a); log(`AUTO/ PAPER ${side} ${symbol} · ENTRY ${fmtTradeP(p)} · SL ${fmtTradeP(sl)} · TP ${fmtTradeP(tp)} · SCORE ${a.score.toFixed(0)}% · MOMENTUM ${a.profitEdge?.toFixed?.(2)??'—'}`); return true;
 }
 function renderPosition(pnl=0){if(!hasValidPaperPosition()){$('#position').innerHTML='<div class="muted">Tidak ada posisi.</div>';return}let p=paperPos;$('#position').innerHTML=`<div class="grid3"><div class="metric"><span class="muted">Side</span><b class="${p.side==='BUY'?'up':'down'}">${p.side} ${p.symbol}</b></div><div class="metric"><span class="muted">Entry</span><b>${fmtTradeP(p.entry)}</b></div><div class="metric"><span class="muted">Qty</span><b>${p.qty.toFixed(6)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">Margin</span><b>${fmtIDR(p.margin||0)}</b></div><div class="metric"><span class="muted">Leverage</span><b>${Number(p.leverage||1)}x</b></div><div class="metric"><span class="muted">Position Size</span><b>${fmtIDR(p.notional||0)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">SL</span><b>${fmtTradeP(p.sl)}</b></div><div class="metric"><span class="muted">TP</span><b>${fmtTradeP(p.tp)}</b></div><div class="metric"><span class="muted">PnL</span><b class="${pnl>=0?'up':'down'}">${fmtIDR(pnl)}</b></div></div><div class="kv"><span>BE / Partial / Trail</span><b>${p.be?'ON':'OFF'} / ${p.partial?'ON':'OFF'} / ${p.trail?'ON':'OFF'}</b></div><div class="kv"><span>Peak Profit / Giveback</span><b>${fmtIDR(p.peakPnl||0)} / ${Number($('#profitGiveback')?.value||10)}%</b></div>`}
 
