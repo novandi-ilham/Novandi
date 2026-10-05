@@ -11,7 +11,7 @@
 <aside class="left">
 <section class="panel"><div class="phead">PAIR SCANNER <span class="pill" id="scanState">READY</span></div><div class="pbody grid2"><button class="btn" id="refreshScan">Refresh</button><button class="btn active" id="autoToggle">AUTO ON</button></div><div class="symbols" id="symbols"></div></section>
 <section class="panel section"><div class="phead">ACCOUNT · IDR</div><div class="pbody"><div class="kv"><span>Status</span><b id="acctStatus">PAPER</b></div><div class="kv"><span>Wallet</span><b id="balance">Rp 10.000.000</b></div><div class="kv"><span>Available</span><b id="available">Rp 10.000.000</b></div><div class="kv"><span>Unrealized</span><b id="unrealized">Rp 0</b></div><div class="kv"><span>Paper PnL</span><b id="paperPnl">Rp 0</b></div><div class="muted" style="font-size:11px;margin-top:6px">Wallet berubah setelah posisi ditutup; PnL berjalan tampil di Unrealized.</div><button class="btn" style="width:100%;margin-top:8px" id="accountBtn">Sync Binance Account</button></div></section>
-<section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.75" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="1" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Negative scans before rotate<input id="negativeScans" type="number" value="1" min="1" max="12" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
+<section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.35" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="0.2" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Loss moves before close<input id="negativeScans" type="number" value="3" min="2" max="3" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
 </aside>
 <main>
 <section class="panel"><div class="tabs"><button class="btn active" data-tf="15m">15M ONLY</button><span class="pill">EMA20</span><span class="pill">S/R</span><span class="pill">FIB</span><span class="pill">WICK</span><span class="pill">BREAKOUT</span></div><div class="chartbox"><div id="chart" class="chart"></div><div class="overlay"><span class="tag" id="symbolTitle">BTCUSDT</span><span class="tag" id="lastPrice">—</span><span class="tag" id="ohlc">O — H — L — C —</span><span class="tag" id="candleDir">CANDLE —</span><span class="tag" id="candleTimer">CLOSE —</span><span class="tag" id="regime">REGIME —</span><span class="tag" id="noTrade">TRADE CHECK —</span></div><div class="tag" style="position:absolute;right:8px;bottom:8px;z-index:4;border-color:#19d59a;color:#b8ffe9">● AUTO ENTRY · ▲ BUY / ▼ SELL · garis Entry / SL / TP</div><div class="charttools"><button class="btn active" data-tool="none">Pointer</button><button class="btn" data-tool="trend">Trendline</button><button class="btn" data-tool="fib">Fib</button><button class="btn" id="srBtn">Auto S/R</button><button class="btn" id="clearDraw">Clear</button></div></div></section>
@@ -112,8 +112,8 @@ function addTradeMarker(type,p){
   if(tradeMarkers.length>50)tradeMarkers=tradeMarkers.slice(-50);
   renderTradeVisuals();
 }
-function persist(){try{localStorage.setItem('ilhamPaperStateV54',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||1,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||1,autoRotate:$('#autoRotate').checked}))}catch{}}
-function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV54')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;paperPnl=+x.paperPnl||0;dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats=x.tradeStats||tradeStats;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory:[];tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||1;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||1;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
+function persist(){try{localStorage.setItem('ilhamPaperStateV56',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||0.2,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||3,autoRotate:$('#autoRotate').checked}))}catch{}}
+function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV56')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;paperPnl=+x.paperPnl||0;dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats=x.tradeStats||tradeStats;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory:[];tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||0.2;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||3;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
 function log(s){const e=document.createElement('div');e.className='log';e.textContent=new Date().toLocaleTimeString('id-ID')+' · '+s;$('#logs').prepend(e)}
 function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
 function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
@@ -324,7 +324,7 @@ function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=pap
 function lossExitReason(current,best){
  if(!hasValidPaperPosition())return null;
  const p=paperPos,price=current?.c?.close||p.entry,pnl=currentPaperPnl(price);
- const maxLoss=Math.max(0,Number($('#maxFloatLoss').value)||1)/100*Math.max(1,Number(p.margin)||0);
+ const maxLoss=Math.max(0,Number($('#maxFloatLoss').value)||0.5)/100*Math.max(1,Number(p.margin)||0);
  const sameBias=current?.bias===(p.side==='BUY'?'LONG':'SHORT');
  const invalid=!current?.allowed||!sameBias;
  const givebackPct=Math.min(100,Math.max(1,Number($('#profitGiveback').value)||10))/100;
@@ -395,35 +395,18 @@ async function scan(){
   const currentOpp=Number(currentPO.opportunity); const bestOpp=Number(best?.opportunity??-Infinity);
   const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=streakLimit;
   const currentPnl=active&&current?currentPaperPnl(current.c.close):0;
-  // Pair-loss guard: NEVER count the entry candle itself. The old logic could
-  // open on a live candle, see normal entry costs as a small negative PnL,
-  // and close the position on the very next scan. That created the 0%-win-rate
-  // loss cascade seen in testing. Count only a NEW 15M candle after entry.
+  // Pair-loss movement guard is enforced in updatePosition() on live prices.
+  // Scanner only displays the state; it never treats entry fees or a tiny negative
+  // PnL as a loss movement. This prevents the old rotate cascade.
   let lossCut=false;
   if(active&&current){
-    const ct=Number(current.c.time)||0;
-    const entryCt=Number(paperPos.entryCandleTime||0);
-    const candleAdvanced=ct>entryCt;
-    if(candleAdvanced&&currentPnl<0){
-      if(Number(paperPos.negativeCandleTime||0)!==ct){
-        paperPos.negativeScans=Number(paperPos.negativeScans||0)+1;
-        paperPos.negativeCandleTime=ct;
-        persist();
-      }
-    }else if(currentPnl>=0){
-      if(Number(paperPos.negativeScans||0)>0||Number(paperPos.negativeCandleTime||0)!==0){
-        paperPos.negativeScans=0;
-        paperPos.negativeCandleTime=0;
-        persist();
-      }
-    }
-    const negLimit=Math.max(1,Number($('#negativeScans').value)||1);
-    lossCut=candleAdvanced&&Number(paperPos.negativeScans||0)>=negLimit&&currentPnl<0;
+    const negLimit=Math.max(2,Math.min(3,Number($('#negativeScans').value)||3));
+    lossCut=Number(paperPos.adverseMoves||0)>=negLimit&&currentPnl<0;
   }
   const materiallyBetter=!!(best&&best.symbol!==activeSymbol&&best.profitSignal&&bestOpp>currentOpp+HUNTER.switchAdvantage);
   const canEnter=!active&&!!best;
   const canRotate=active&&best&&best.symbol!==activeSymbol&&((repeatedLoss&&best.entryReady)||(currentPnl<0&&materiallyBetter&&(!currentPO.signal||bestOpp>=currentOpp+HUNTER.switchAdvantage)));
-  if(active&&lossCut){
+  if(active&&lossCut&&hasValidPaperPosition()){
     const mark=current?.c?.close||paperPos.entry;
     const livePnl=currentPaperPnl(mark);
     const oldSymbol=activeSymbol;
@@ -490,12 +473,23 @@ function openPaper(side,forcedAnalysis=null,opts={}){
   }
   if(g.length){log('ENTRY BLOCKED: '+g.join(', '));let el=$('#engineStatus');if(el){el.className='dangerbox';el.textContent='NO TRADE · '+g.join(', ')}return false}
   
-  let risk=Number($('#risk').value)/100,sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),margin=mode==='paper'?paperMargin():0,leverage=mode==='paper'?paperLeverage():Number($('#lev').value)||1,notional=mode==='paper'?margin*leverage:0,qty=mode==='paper'?(notional/IDR)/Math.max(p,0.00000001):Math.max(0.000001,Number($('#qty').value)||positionSize(p,sl));if(mode==='paper'&&margin>accountEquity+paperPnl){log(`ENTRY BLOCKED: margin ${fmtIDR(margin)} melebihi available balance`);syncPaperStateUI(a);return false;}
+  let risk=Number($('#risk').value)/100,sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),margin=mode==='paper'?paperMargin():0,leverage=mode==='paper'?paperLeverage():Number($('#lev').value)||1;
+  // Risk-first sizing: the configured margin is only a ceiling. Size the PAPER position so a full SL hit (plus estimated fees/slippage) stays near the configured risk budget.
+  const riskBudget=mode==='paper'?Math.max(1,accountEquity*risk):0;
+  const feeFrac=Math.max(0,Number($('#fee').value)||0)/100*2;
+  const slipFrac=Math.max(0,Number($('#slippage').value)||0)/100;
+  const effectiveRiskFrac=Math.max(0.001,sp+feeFrac+slipFrac);
+  const riskNotionalIdr=mode==='paper'?(riskBudget/effectiveRiskFrac):0;
+  const marginNotionalIdr=mode==='paper'?margin*leverage:0;
+  const notional=mode==='paper'?Math.min(marginNotionalIdr,riskNotionalIdr):0;
+  const qty=mode==='paper'?(notional/IDR)/Math.max(p,0.00000001):Math.max(0.000001,Number($('#qty').value)||positionSize(p,sl));
+  if(mode==='paper'&&notional<=0){log('ENTRY BLOCKED: risk budget menghasilkan size 0');syncPaperStateUI(a);return false;}if(mode==='paper'&&margin>accountEquity+paperPnl){log(`ENTRY BLOCKED: margin ${fmtIDR(margin)} melebihi available balance`);syncPaperStateUI(a);return false;}
   if((side==='BUY'&&(sl>=p||tp<=p))||(side==='SELL'&&(sl<=p||tp>=p))){log('ENTRY BLOCKED: SL/TP tidak valid');$('#engineStatus').className='dangerbox';$('#engineStatus').textContent='NO TRADE · SL/TP tidak valid';return false}
-  paperPos={symbol,side,entry:p,qty,sl,tp,initialSL:sl,be:false,partial:false,trail:false,opened:Date.now(),risk,margin,leverage,notional,entryCandleTime:a.c.time,entryScore:a.score,entryBias:a.bias,peakPnl:0,negativeScans:0,negativeCandleTime:0};
+  const usedMargin=mode==='paper'?(notional/Math.max(1,leverage)):margin;
+  paperPos={symbol,side,entry:p,qty,sl,tp,initialSL:sl,be:false,partial:false,trail:false,opened:Date.now(),risk,margin:usedMargin,leverage,notional,entryCandleTime:a.c.time,entryScore:a.score,entryBias:a.bias,peakPnl:0,negativeScans:0,negativeCandleTime:0,adverseMoves:0,lastAdversePrice:p,moveAnchorPrice:p,lastMoveAt:Date.now()};
   addTradeMarker('entry',paperPos); renderTradeVisuals(); persist(); syncPaperStateUI(a); log(`AUTO/ PAPER ${side} ${symbol} · ENTRY ${fmtTradeP(p)} · SL ${fmtTradeP(sl)} · TP ${fmtTradeP(tp)} · SCORE ${a.score.toFixed(0)}% · MOMENTUM ${a.profitEdge?.toFixed?.(2)??'—'}`); return true;
 }
-function renderPosition(pnl=0){if(!hasValidPaperPosition()){$('#position').innerHTML='<div class="muted">Tidak ada posisi.</div>';return}let p=paperPos;$('#position').innerHTML=`<div class="grid3"><div class="metric"><span class="muted">Side</span><b class="${p.side==='BUY'?'up':'down'}">${p.side} ${p.symbol}</b></div><div class="metric"><span class="muted">Entry</span><b>${fmtTradeP(p.entry)}</b></div><div class="metric"><span class="muted">Qty</span><b>${p.qty.toFixed(6)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">Margin</span><b>${fmtIDR(p.margin||0)}</b></div><div class="metric"><span class="muted">Leverage</span><b>${Number(p.leverage||1)}x</b></div><div class="metric"><span class="muted">Position Size</span><b>${fmtIDR(p.notional||0)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">SL</span><b>${fmtTradeP(p.sl)}</b></div><div class="metric"><span class="muted">TP</span><b>${fmtTradeP(p.tp)}</b></div><div class="metric"><span class="muted">PnL</span><b class="${pnl>=0?'up':'down'}">${fmtIDR(pnl)}</b></div></div><div class="kv"><span>BE / Partial / Trail</span><b>${p.be?'ON':'OFF'} / ${p.partial?'ON':'OFF'} / ${p.trail?'ON':'OFF'}</b></div><div class="kv"><span>Peak Profit / Giveback</span><b>${fmtIDR(p.peakPnl||0)} / ${Number($('#profitGiveback')?.value||10)}%</b></div>`}
+function renderPosition(pnl=0){if(!hasValidPaperPosition()){$('#position').innerHTML='<div class="muted">Tidak ada posisi.</div>';return}let p=paperPos;$('#position').innerHTML=`<div class="grid3"><div class="metric"><span class="muted">Side</span><b class="${p.side==='BUY'?'up':'down'}">${p.side} ${p.symbol}</b></div><div class="metric"><span class="muted">Entry</span><b>${fmtTradeP(p.entry)}</b></div><div class="metric"><span class="muted">Qty</span><b>${p.qty.toFixed(6)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">Margin</span><b>${fmtIDR(p.margin||0)}</b></div><div class="metric"><span class="muted">Leverage</span><b>${Number(p.leverage||1)}x</b></div><div class="metric"><span class="muted">Position Size</span><b>${fmtIDR(p.notional||0)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">SL</span><b>${fmtTradeP(p.sl)}</b></div><div class="metric"><span class="muted">TP</span><b>${fmtTradeP(p.tp)}</b></div><div class="metric"><span class="muted">PnL</span><b class="${pnl>=0?'up':'down'}">${fmtIDR(pnl)}</b></div></div><div class="kv"><span>BE / Partial / Trail</span><b>${p.be?'ON':'OFF'} / ${p.partial?'ON':'OFF'} / ${p.trail?'ON':'OFF'}</b></div><div class="kv"><span>Loss Movement / Hard Loss</span><b>${Number(p.adverseMoves||0)} / ${Math.max(2,Math.min(3,Number($('#negativeScans').value)||3))} · -${fmtIDR(accountEquity*(Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100))}</b></div><div class="kv"><span>Risk Budget / Peak Profit / Giveback</span><b>${fmtIDR((accountEquity*Number($('#risk').value)/100)||0)} / ${fmtIDR(p.peakPnl||0)} / ${Number($('#profitGiveback')?.value||10)}%</b></div>`}
 
 function renderPerformance(unrealized=0){const n=tradeHistory.length,w=tradeStats.wins,l=tradeStats.losses,net=paperPnl,grossWin=tradeHistory.filter(x=>x.pnl>0).reduce((a,x)=>a+x.pnl,0),grossLoss=Math.abs(tradeHistory.filter(x=>x.pnl<0).reduce((a,x)=>a+x.pnl,0));$('#perfTrades').textContent=n;$('#perfWin').textContent=(n?((w/n)*100).toFixed(1):'0')+'%';$('#perfNet').textContent=fmtIDR(net);$('#perfPF').textContent=grossLoss?(grossWin/grossLoss).toFixed(2):'—';$('#perfBest').textContent=fmtIDR(n?Math.max(...tradeHistory.map(x=>x.pnl)):0);$('#perfWorst').textContent=fmtIDR(n?Math.min(...tradeHistory.map(x=>x.pnl)):0);$('#perfStreak').textContent=lossStreak;$('#perfLive').textContent=hasValidPaperPosition()?`Posisi ${paperPos.side} ${paperPos.symbol} · Entry ${fmtTradeP(paperPos.entry)} · Unrealized ${fmtIDR(unrealized)}`:'Posisi aktif: belum ada';if(n){const rows=tradeHistory.slice(-5).reverse().map(x=>`<div class="log"><b>${x.symbol} ${x.side}</b> · ${fmtIDR(x.pnl)} · ${x.result} · ${new Date(x.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</div>`).join('');$('#perfHistory').innerHTML=rows}else $('#perfHistory').textContent='Belum ada trade yang ditutup.'}
 function paperMargin(){return Math.max(0,Number($('#margin').value)||DEFAULT_PAPER_MARGIN_IDR)}
@@ -511,12 +505,41 @@ function updatePosition(price){
  if(!p.be&&raw>=r*1){p.sl=p.entry*(p.side==='BUY'?1.0002:.9998);p.be=true;log('SL PLUS → BREAK EVEN')}
  if(p.trail&&raw>r*1.5){let t=atr()*0.8;p.sl=p.side==='BUY'?Math.max(p.sl,price-t):Math.min(p.sl,price+t)}
  renderPosition(pnlIDR);updatePaperAccount(pnlIDR);renderTradeVisuals();
- // HARD FLOATING LOSS: measured against account equity, never against a wrong chart price.
- const maxFloatPct=Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||1))/100;
- const hardFloatLimit=Math.max(1,accountEquity*maxFloatPct);
+ // LIVE LOSS-MOVEMENT GUARD: count only meaningful adverse price moves from entry/last adverse anchor.
+ // Entry fees/slippage alone never count as a movement. Default is 3 adverse moves, configurable 2–3.
+ const negLimit=Math.max(2,Math.min(3,Number($('#negativeScans').value)||3));
+ const moveStep=Math.max(Math.abs(p.entry-p.initialSL)*0.12,Math.abs(p.entry)*0.00025);
+ const adverse= p.side==='BUY' ? (price < Number(p.moveAnchorPrice||p.entry)-moveStep) : (price > Number(p.moveAnchorPrice||p.entry)+moveStep);
+ if(adverse){
+   p.adverseMoves=Number(p.adverseMoves||0)+1;
+   p.lastAdversePrice=price;
+   p.moveAnchorPrice=price;
+   p.lastMoveAt=Date.now();
+   persist();
+   log(`LOSS MOVE ${p.symbol} ${p.side} · ${p.adverseMoves}/${negLimit} · PnL ${fmtIDR(pnlIDR)}`);
+ }else{
+   // A meaningful favorable move resets the consecutive adverse-move counter.
+   const favorable=p.side==='BUY' ? price > Number(p.moveAnchorPrice||p.entry)+moveStep : price < Number(p.moveAnchorPrice||p.entry)-moveStep;
+   if(favorable && Number(p.adverseMoves||0)>0){
+     p.adverseMoves=0;
+     p.lastAdversePrice=price;
+     p.moveAnchorPrice=price;
+     p.lastMoveAt=Date.now();
+     persist();
+   }
+ }
+ if(Number(p.adverseMoves||0)>=negLimit&&pnlIDR<0){
+   log(`PAIR LOSS MOVEMENT CUT → ${p.symbol} ${p.side} · ${p.adverseMoves} gerakan berlawanan · ${fmtIDR(pnlIDR)}`);
+   closePaper(price,pnlIDR,`PAIR LOSS ${p.adverseMoves} MOVES`);
+   return;
+ }
+ // HARD FLOATING LOSS: emergency ceiling at 0.20% of account equity, regardless of movement count.
+ const maxFloatPct=Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
+ const riskLimit=Math.max(1,accountEquity*(Math.min(1,Math.max(0.1,Number($('#risk').value)||0.35))/100));
+ const hardFloatLimit=Math.max(1,Math.min(accountEquity*maxFloatPct,riskLimit));
  if(pnlIDR<=-hardFloatLimit){
    log(`HARD FLOATING LOSS → ${p.symbol} ${fmtIDR(pnlIDR)} <= -${fmtIDR(hardFloatLimit)}`);
-   closePaper(price,pnlIDR,'HARD FLOATING LOSS LIMIT');
+   closePaper(price,pnlIDR,'HARD FLOATING LOSS LIMIT 0.20%');
    return;
  }
  const dailyLimit=Math.max(1,accountEquity*(Math.min(50,Math.max(0.5,Number($('#dailyLoss').value)||3))/100));
