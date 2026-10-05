@@ -1,4 +1,4 @@
-const CACHE='ilham-novandi-pwa-v63';
+const CACHE='ilham-novandi-pwa-v64';
 const APP_SHELL=[
   '/',
   '/index.html',
