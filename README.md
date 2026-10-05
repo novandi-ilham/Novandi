@@ -1,10 +1,5 @@
-# ilham novandi trader V43 — Profit Lock Absolute
+# ilham novandi trader V46
 
-V43 is based on V42 with one critical risk-control fix:
+15M-only Best Pair Hunter with comparative 5-candle momentum.
 
-- Profit Giveback is now **independent of Auto Rotate**.
-- If a paper position reaches a positive peak profit and then gives back the configured percentage (default 10%), it closes immediately on the live price update.
-- Example: peak +Rp100,000 with 10% giveback closes at or below +Rp90,000.
-- After close, the hunter can scan again and re-enter the best available 15M opportunity.
-- 15M only; no minimum confidence gate.
-- Repeat-loss pair rotation remains enabled.
+Entry does not use a minimum confidence percentage. Confidence is informational/ranking only. The hunter compares 1-candle, 3-candle and 5-candle directional momentum plus EMA alignment, volume, breakout/rejection, then selects the best opportunity. Switching a materially better pair is atomic with entry after a fresh 15M validation. Profit giveback remains based on peak paper PnL.

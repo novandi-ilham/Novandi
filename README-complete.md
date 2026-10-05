@@ -1,12 +1,10 @@
-# ilham novandi — Futures Command Center (Complete)
+# V46 Complete
 
-Vercel-ready 15M-only Binance Futures Paper Trading terminal with PWA, realtime chart, Paper Engine, margin/leverage controls, auto exit/switch, profit giveback protection and re-entry scanning.
-
-## Structure
-- `public/` — web app, PWA manifest, service worker, icons
-- `api/[...path].js` — Vercel API routes for market/account/order operations
-- `vercel.json` — Vercel routing
-- `.env.example` — environment configuration template
-
-## Safety
-Default mode is PAPER. Keep live trading disabled unless deliberately configured. Never expose Binance API secret in client-side code.
+## Core behavior
+- 15M only.
+- No minimum confidence gate.
+- 5-candle momentum is a comparative ranking feature, not a fixed percentage threshold.
+- Best Pair = strongest current profit opportunity among scanned candidates.
+- Best-pair switch and entry happen in the same hunter cycle after fresh validation.
+- Repeated-loss symbols are cooled down.
+- Profit giveback remains 10% of peak profit by default.
