@@ -50,7 +50,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],lossCooldowns={};
 const LOSS_REENTRY_COOLDOWN_MS=15*60*1000;
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={minConfidence:58,switchAdvantage:2,scanMs:2200,candidateCount:24,cooldownMs:350,previewSwitchMs:1200,previewAdvantage:1,klinesCacheMs:7000};
+const HUNTER={minConfidence:0,switchAdvantage:2,scanMs:1800,candidateCount:36,cooldownMs:250,previewSwitchMs:700,previewAdvantage:0,klinesCacheMs:6000};
 const scanKlineCache=new Map();
 let tickerCache={at:0,data:null};
 async function getScannerTicker(){
@@ -130,20 +130,21 @@ function analyzeData(cs){
  if(Math.abs(momentum)<.35)reasons.push('momentum lemah (warning)');
  if(vol<.65)reasons.push('volume relatif rendah (warning)');
  if(bias==='NEUTRAL')reasons.push('LONG/SHORT belum unggul');
- if(score<58)reasons.push('confidence di bawah 58%');
+ if(score<58)reasons.push('confidence rendah · warning saja');
  if(bias==='LONG'&&c.close<e)reasons.push('harga belum konfirmasi EMA20');
  if(bias==='SHORT'&&c.close>e)reasons.push('harga belum konfirmasi EMA20');
- // Entry dibuat lebih agresif seperti versi awal: warning tidak lagi memblokir.
- // Yang memblokir hanya arah belum jelas, EMA berlawanan, volatilitas ekstrem,
- // atau score di bawah ambang minimum.
- const hardBlock=(regime==='EXTREME VOLATILITY'||bias==='NEUTRAL'||score<58||(bias==='LONG'&&c.close<e)||(bias==='SHORT'&&c.close>e));
+ // Entry mengikuti arah yang sedang berjalan, tanpa minimum confidence.
+ // Score hanya ranking; bukan syarat masuk. Untuk LONG harus ada momentum naik,
+ // untuk SHORT momentum turun. EMA berlawanan tetap menjadi pengaman arah.
+ const directionOk=(bias==='LONG'&&momentum>0)||(bias==='SHORT'&&momentum<0);
+ const hardBlock=(bias==='NEUTRAL'||!directionOk||(bias==='LONG'&&c.close<e)||(bias==='SHORT'&&c.close>e));
  const allowed=!hardBlock;
  const slDist=Math.max(A*.8,c.close*.004),rr=2,tpDist=slDist*rr;
  return {c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr};
 }
 function analyze(){return analyzeData(candles)}
 function intervalSec(){return 900}
-function updateUI(){let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'TRADE CHECK ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;$('#candleTimer').textContent='CLOSE '+Math.max(0,Math.floor(rem))+'s';let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition())updatePosition(a.c.close);syncPaperStateUI(a)}
+function updateUI(){let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'AUTO ENTRY ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;$('#candleTimer').textContent='CLOSE '+Math.max(0,Math.floor(rem))+'s';let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition())updatePosition(a.c.close);syncPaperStateUI(a)}
 function initChart(){
  const host=$('#chart');
  if(!host)return;
@@ -262,8 +263,10 @@ function drawSR(){drawings.forEach(x=>x.remove?.());drawings=[];let {support,res
 function drawClick(ev){if(tool==='none')return;let r=$('#chart').getBoundingClientRect(),x=ev.clientX-r.left,t=chart.timeScale().coordinateToTime(x),p=series.coordinateToPrice(ev.clientY-r.top);if(!t||p==null)return;drawings.push({x,p});if(drawings.length<2)return;let a=drawings.at(-2),b=drawings.at(-1),t1=chart.timeScale().coordinateToTime(a.x),t2=chart.timeScale().coordinateToTime(b.x);let l=chart.addLineSeries({color:tool==='fib'?'#f4c44f':'#63a8ff',lineWidth:2});l.setData([{time:t1,value:a.p},{time:t2,value:b.p}]);drawings.push(l);if(tool==='fib'){[.236,.382,.5,.618,.786].forEach(r=>{let f=chart.addLineSeries({color:'#f4c44f55',lineWidth:1,lineStyle:2});f.setData([{time:t1,value:a.p+(b.p-a.p)*r},{time:t2,value:a.p+(b.p-a.p)*r}]);drawings.push(f)})}tool='none';$$('[data-tool]').forEach(x=>x.classList.remove('active'));$('[data-tool="none"]').classList.add('active')}
 function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=paperPos,dir=p.side==='BUY'?1:-1,raw=(price-p.entry)*p.qty*dir,fee=(Math.abs(p.entry*p.qty)+Math.abs(price*p.qty))*Number($('#fee').value)/100,slip=Math.abs(price*p.qty)*Number($('#slippage').value)/100;return (raw-fee-slip)*IDR}
 function hunterAllowed(a){
- if(!a||!Number.isFinite(a.score)||a.score<HUNTER.minConfidence)return false;
- if(a.bias==='NEUTRAL'||a.regime==='EXTREME VOLATILITY')return false;
+ if(!a||!Number.isFinite(a.score))return false;
+ if(a.bias==='NEUTRAL')return false;
+ const directionOk=(a.bias==='LONG'&&a.momentum>0)||(a.bias==='SHORT'&&a.momentum<0);
+ if(!directionOk)return false;
  if(a.bias==='LONG'&&a.c.close<a.e)return false;
  if(a.bias==='SHORT'&&a.c.close>a.e)return false;
  return true;
@@ -346,8 +349,8 @@ async function scan(){
    } else if(!active){
      target=best&&!(Number(lossCooldowns[best.symbol]||0)>now)?best:null;
    }
-   const canRotate=active&&!!exitReason&&!!target&&target.score>=HUNTER.minConfidence;
-   const canEnter=!active&&!!target&&target.score>=HUNTER.minConfidence;
+   const canRotate=active&&!!exitReason&&!!target;
+   const canEnter=!active&&!!target;
    if(target&&(canEnter||canRotate)){
     const oldSymbol=paperPos?.symbol;
     if(active&&exitReason){
@@ -382,7 +385,7 @@ async function scan(){
        $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · belum valid`;
        log(`SCOUT SWITCH → ${from} → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · cari peluang`);
      }else{
-       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · ${best?'valid':`menunggu arah ≥${HUNTER.minConfidence}%`}`;
+       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · ${best?'valid':'menunggu arah naik/turun'}`;
        if(bestAny.symbol!==symbol||bestAny.score>=HUNTER.minConfidence) log(`SCOUT → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · ${best?'SIAP ENTRY':'belum memenuhi '+HUNTER.minConfidence+'%'}`);
      }
    } else {
