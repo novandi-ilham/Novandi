@@ -50,7 +50,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],lossCooldowns={};
 const LOSS_REENTRY_COOLDOWN_MS=15*60*1000;
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={minConfidence:62,switchAdvantage:2,scanMs:2500,candidateCount:16,cooldownMs:350,previewSwitchMs:1800,previewAdvantage:2,klinesCacheMs:8000};
+const HUNTER={minConfidence:58,switchAdvantage:2,scanMs:2200,candidateCount:24,cooldownMs:350,previewSwitchMs:1200,previewAdvantage:1,klinesCacheMs:7000};
 const scanKlineCache=new Map();
 let tickerCache={at:0,data:null};
 async function getScannerTicker(){
@@ -127,13 +127,17 @@ function analyzeData(cs){
  const score=Math.max(long,short), bias=long>=short+5?'LONG':short>=long+5?'SHORT':'NEUTRAL';
  const reasons=[];
  if(regime==='EXTREME VOLATILITY')reasons.push('volatilitas ekstrem');
- if(Math.abs(momentum)<.35)reasons.push('momentum lemah');
- if(vol<.65)reasons.push('volume relatif rendah');
+ if(Math.abs(momentum)<.35)reasons.push('momentum lemah (warning)');
+ if(vol<.65)reasons.push('volume relatif rendah (warning)');
  if(bias==='NEUTRAL')reasons.push('LONG/SHORT belum unggul');
- if(score<70)reasons.push('confidence di bawah 70%');
+ if(score<58)reasons.push('confidence di bawah 58%');
  if(bias==='LONG'&&c.close<e)reasons.push('harga belum konfirmasi EMA20');
  if(bias==='SHORT'&&c.close>e)reasons.push('harga belum konfirmasi EMA20');
- const allowed=reasons.length===0&&score>=70&&regime!=='EXTREME VOLATILITY';
+ // Entry dibuat lebih agresif seperti versi awal: warning tidak lagi memblokir.
+ // Yang memblokir hanya arah belum jelas, EMA berlawanan, volatilitas ekstrem,
+ // atau score di bawah ambang minimum.
+ const hardBlock=(regime==='EXTREME VOLATILITY'||bias==='NEUTRAL'||score<58||(bias==='LONG'&&c.close<e)||(bias==='SHORT'&&c.close>e));
+ const allowed=!hardBlock;
  const slDist=Math.max(A*.8,c.close*.004),rr=2,tpDist=slDist*rr;
  return {c,e,A,support,resistance,body,range,wU,wL,bodyPct,bull,bear,trend,momentum,vol,breakoutLong,breakoutShort,rejectLong,rejectShort,nearRes,nearSup,emaSlope,regime,longScore:long,shortScore:short,score,bias,reasons,allowed,slDist,tpDist,rr};
 }
@@ -260,7 +264,6 @@ function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=pap
 function hunterAllowed(a){
  if(!a||!Number.isFinite(a.score)||a.score<HUNTER.minConfidence)return false;
  if(a.bias==='NEUTRAL'||a.regime==='EXTREME VOLATILITY')return false;
- if(a.vol<0.65)return false;
  if(a.bias==='LONG'&&a.c.close<a.e)return false;
  if(a.bias==='SHORT'&&a.c.close>a.e)return false;
  return true;
@@ -379,7 +382,7 @@ async function scan(){
        $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · belum valid`;
        log(`SCOUT SWITCH → ${from} → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · cari peluang`);
      }else{
-       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · ${best?'valid':`belum ${HUNTER.minConfidence}%`}`;
+       $('#scanState').textContent=`SCOUT ${bestAny.symbol} ${bestAny.score.toFixed(0)}% · ${best?'valid':`menunggu arah ≥${HUNTER.minConfidence}%`}`;
        if(bestAny.symbol!==symbol||bestAny.score>=HUNTER.minConfidence) log(`SCOUT → ${bestAny.symbol} ${bestAny.score.toFixed(0)}% ${bestAny.bias} · ${best?'SIAP ENTRY':'belum memenuhi '+HUNTER.minConfidence+'%'}`);
      }
    } else {
