@@ -50,7 +50,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let latestPriceBySymbol={}, symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={switchAdvantage:8,scanMs:2200,candidateCount:48,cooldownMs:1200,klinesCacheMs:9000,maxConcurrent:6};
+const HUNTER={switchAdvantage:10,scanMs:1800,candidateCount:48,cooldownMs:1000,klinesCacheMs:7000,maxConcurrent:6};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
 async function getScanTicker(){
  const now=Date.now();
@@ -138,16 +138,22 @@ function profitOpportunity(a, quote={}){
  const candleAligned=(dir===1?c.close>c.open:c.close<c.open);
  const prevAligned=(dir===1?p1.close>p1.open:p1.close<p1.open);
  const trendAligned=emaAlign>0;
- const momentumOk=dir*a.momentum>0.15;
- const bodyOk=Number(a.bodyPct||0)>=0.35;
- const volumeOk=Number(a.vol||0)>=0.85;
- const structureOk=breakout||rejection||(slope3>0.35&&bodyImpulse>0.18);
- const notChasing=extension<=1.8;
- const regimeOk=a.regime!=='EXTREME VOLATILITY'&&a.regime!=='RANGE';
- const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&(candleAligned||breakout||rejection);
+ const momentumOk=dir*a.momentum>0.03;
+ // Profit-first: do not require a perfect candle. Rank the strongest live 15M opportunity,
+ // while still rejecting extreme volatility and late/chasing entries.
+ const bodyOk=Number(a.bodyPct||0)>=0.18;
+ const volumeOk=Number(a.vol||0)>=0.55;
+ const structureOk=breakout||rejection||(slope3>0.12&&bodyImpulse>0.05)||(trendAligned&&immediate>0.02);
+ const notChasing=extension<=2.5;
+ const rangeSetup=(a.regime!=='RANGE')||breakout||rejection||((a.nearSup||a.nearRes)&&Math.abs(a.momentum)>0.12);
+ const regimeOk=a.regime!=='EXTREME VOLATILITY'&&rangeSetup;
+ const candleTiming=candleAligned||breakout||rejection||immediate>0.02;
+ const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&candleTiming;
  const edge=slope3*0.32+slope5*0.16+bodyImpulse*0.18+emaAlign*0.12+emaSlope*0.08+volBoost*0.30+(breakout?0.9:0)+(rejection?0.55:0)-(extension>1.3?(extension-1.3)*1.2:0);
  const opportunity=edge*20+Math.min(10,Math.max(0,immediate*5))+Math.min(8,Math.max(0,slope3*3))+(breakout?10:0)+(rejection?5:0)+Math.min(6,Math.max(0,(a.vol-0.8)*6));
- return {edge,opportunity,signal,entryReady:signal,slope3,slope5,immediate,extension,trendAligned,momentumOk,bodyOk,volumeOk,structureOk,notChasing,regimeOk};
+ const profitEdge=edge + (breakout?.35:0) + (rejection?.2:0) + (trendAligned?.12:0) + (momentumOk?.08:0);
+ const profitSignal=signal && profitEdge>0.18 && opportunity>2;
+ return {edge,profitEdge,opportunity,signal:profitSignal,entryReady:profitSignal,slope3,slope5,immediate,extension,trendAligned,momentumOk,bodyOk,volumeOk,structureOk,notChasing,regimeOk};
 }
 
 function analyzeData(cs){
@@ -432,7 +438,7 @@ async function scan(){
     }
   }else if(active&&repeatedLoss){$('#scanState').textContent=`HOLD ${paperPos.symbol} · mencari pair profit`;
   }else if(best){$('#scanState').textContent=active?`HOLD ${activeSymbol} · BEST ${best.symbol} · ${best.opportunity.toFixed(1)}`:`BEST ${best.symbol} ${best.bias} · ENTRY READY`;
-  }else $('#scanState').textContent=`NO PROFIT SETUP · ${scanStats.ok}/${scanStats.total} parsed · ${Date.now()-scanStarted}ms`;
+  }else $('#scanState').textContent=`SCAN ${scanStats.ok}/${scanStats.total} · belum ada entry-ready 15M · ${Date.now()-scanStarted}ms`;
  }catch(e){
    log('Scanner error: '+(e?.stack||e?.message||String(e)));
    const cached=Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length;
