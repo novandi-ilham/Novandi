@@ -50,7 +50,8 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],lossCooldowns={};
 const LOSS_REENTRY_COOLDOWN_MS=15*60*1000;
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={minConfidence:70,switchAdvantage:10,scanMs:5000,candidateCount:10,cooldownMs:12000};
+const HUNTER={minConfidence:70,switchAdvantage:10,scanMs:2500,candidateCount:12,cooldownMs:5000,klinesCacheMs:8000};
+const scanKlineCache=new Map();
 const IDR=16000; const fmtP=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:priceDecimals(n)}); const fmtIDR=n=>'Rp '+Math.round(n||0).toLocaleString('id-ID');
 function priceDecimals(n){n=Math.abs(Number(n)||0);if(n>=1000)return 2;if(n>=100)return 3;if(n>=1)return 4;if(n>=0.1)return 5;if(n>=0.01)return 6;if(n>=0.001)return 7;return 8}
 function fmtTradeP(n){const d=priceDecimals(n);return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
@@ -248,7 +249,11 @@ async function scan(){
   const liquid=d.filter(x=>x.symbol.endsWith('USDT')&&!x.symbol.includes('_')&&+x.quoteVolume>5e6&&x.symbol!=='USDCUSDT');
   const sorted=[...liquid].sort((a,b)=>Math.abs(+b.priceChangePercent)-Math.abs(+a.priceChangePercent));
   const volume=[...liquid].sort((a,b)=>+b.quoteVolume-+a.quoteVolume);
-  const universe=[...new Map([...sorted.slice(0,18),...volume.slice(0,18)].map(x=>[x.symbol,x])).values()].slice(0,24);
+  // Dua tahap: ticker sangat cepat untuk menyaring kandidat, lalu hanya 12 pair teratas yang dianalisis candle 15M.
+  // Ini jauh lebih responsif daripada mengambil klines 24 pair setiap siklus.
+  const universe=[...new Map([...sorted.slice(0,10),...volume.slice(0,10)].map(x=>[x.symbol,x])).values()]
+    .sort((a,b)=>(Math.abs(+b.priceChangePercent)+Math.log10(1+Math.max(0,+b.quoteVolume)/1e6))-(Math.abs(+a.priceChangePercent)+Math.log10(1+Math.max(0,+a.quoteVolume)/1e6)))
+    .slice(0,HUNTER.candidateCount);
   const g=[...liquid].sort((a,b)=>+b.priceChangePercent-+a.priceChangePercent).slice(0,5),l=[...liquid].sort((a,b)=>+a.priceChangePercent-+b.priceChangePercent).slice(0,5);
   $('#symbols').innerHTML=universe.map(x=>`<div class="sym ${x.symbol===symbol?'active':''}" data-s="${x.symbol}"><div><b>${x.symbol}</b><div class="muted">Vol ${(Number(x.quoteVolume)/1e6).toFixed(1)}M</div></div><b class="${+x.priceChangePercent>=0?'up':'down'}">${+x.priceChangePercent>=0?'+':''}${(+x.priceChangePercent).toFixed(2)}%</b></div>`).join('');
   $$('.sym').forEach(e=>e.onclick=()=>switchSymbol(e.dataset.s));
@@ -256,7 +261,20 @@ async function scan(){
   $('#scanState').textContent='SCANNING 15M';
   if(auto&&!killed&&mode==='paper'&&Date.now()-lastSwitchAt>=HUNTER.cooldownMs){
    const ranked=[];
-   const results=await Promise.all(universe.map(async x=>{try{let q=await fetch(`/api/market/klines?symbol=${x.symbol}`);if(!q.ok)return null;let kd=await q.json();let cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));let a=analyzeData(cs);if(!a||!a.allowed)return null;return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume};}catch{return null}}));
+   const results=await Promise.all(universe.map(async x=>{try{
+      const now=Date.now(), cached=scanKlineCache.get(x.symbol);
+      let cs=cached&&now-cached.at<HUNTER.klinesCacheMs?cached.cs:null;
+      if(!cs){
+        let q=await fetch(`/api/market/klines?symbol=${x.symbol}&limit=90&_=${now}`,{cache:'no-store'});
+        if(!q.ok)return null;
+        let kd=await q.json();
+        cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
+        scanKlineCache.set(x.symbol,{at:now,cs});
+      }
+      let a=analyzeData(cs);
+      if(!a||!a.allowed)return null;
+      return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume};
+    }catch{return null}}));
    results.filter(Boolean).forEach(x=>ranked.push(x)); ranked.sort((a,b)=>b.score-a.score);
    const best=ranked[0]; const current=paperPos?analyze():null; const currentScore=current?.score||0;
    const active=hasValidPaperPosition(); const exitReason=active?lossExitReason(current,best):null;
