@@ -259,12 +259,31 @@ function applyLiveKline(k){
   const i=candles.findIndex(x=>x.time===c.time);
   if(i>=0)candles[i]=c; else candles.push(c);
   if(candles.length>150)candles=candles.slice(-150);
-  series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
+  if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
   const ev=ema(candles.map(x=>x.close)).at(-1);
-  if(Number.isFinite(ev))emaSeries.update({time:c.time,value:ev});
+  if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
+  latestPriceBySymbol[symbol]=c.close;
   updateUI();
   renderTradeVisuals();
-  $('#conn').textContent='BINANCE WS LIVE';
+  $('#conn').textContent='BINANCE WS LIVE · TICK';
+}
+function applyLiveTrade(t){
+  const price=Number(t.p), tradeTime=Number(t.T||Date.now());
+  if(!Number.isFinite(price)||price<=0||!candles.length)return;
+  const barTime=Math.floor(tradeTime/900000)*900;
+  let c=candles[candles.length-1];
+  if(!c||c.time!==barTime){
+    c={time:barTime,open:price,high:price,low:price,close:price,volume:0};
+    candles.push(c); if(candles.length>150)candles=candles.slice(-150);
+  }else{
+    c={...c,close:price,high:Math.max(c.high,price),low:Math.min(c.low,price)};
+    candles[candles.length-1]=c;
+  }
+  latestPriceBySymbol[symbol]=price;
+  if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
+  updateUI();
+  renderTradeVisuals();
+  $('#conn').textContent='BINANCE WS LIVE · TICK';
 }
 function scheduleWsReconnect(gen){
   clearTimeout(wsReconnectTimer);
@@ -274,8 +293,8 @@ function connectWS(){
  const gen=++wsGeneration; clearTimeout(wsReconnectTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
  // Binance USDⓈ-M Futures now routes regular market streams through /market/stream.
  // Kline is regular market data, so use the new endpoint instead of the retired legacy route.
- const stream=`${symbol.toLowerCase()}@kline_15m`;
- const url='wss://fstream.binance.com/market/stream?streams='+encodeURIComponent(stream);
+ const streams=`${symbol.toLowerCase()}@kline_15m/${symbol.toLowerCase()}@trade`;
+ const url='wss://fstream.binance.com/market/stream?streams='+encodeURIComponent(streams);
  $('#conn').textContent='BINANCE WS CONNECTING';
  lastWsKlineAt=0;
  try{
@@ -290,6 +309,7 @@ function connectWS(){
    try{
     const m=JSON.parse(ev.data),payload=m.data||m;
     if(payload.e==='kline'&&payload.k){lastWsKlineAt=Date.now();applyLiveKline(payload.k)}
+    else if(payload.e==='trade'){lastWsKlineAt=Date.now();applyLiveTrade(payload)}
    }catch(e){}
   };
   ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='WS ERROR · REST LIVE';};
