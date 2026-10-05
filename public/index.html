@@ -51,6 +51,34 @@ let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
 const HUNTER={switchAdvantage:10,scanMs:2200,candidateCount:48,cooldownMs:1200,klinesCacheMs:9000,maxConcurrent:6};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
+async function getScanTicker(){
+ const now=Date.now();
+ if(scanTickerCache.data&&now-scanTickerCache.at<5000)return scanTickerCache.data;
+ try{
+  const r=await fetch('/api/market/ticker?_='+now,{cache:'no-store'});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok||!Array.isArray(d))throw new Error(d?.error||`Ticker API ${r.status}`);
+  scanTickerCache={at:now,data:d}; return d;
+ }catch(e){
+  if(scanTickerCache.data){log(`Ticker sementara gagal · cache dipakai (${e.message})`);return scanTickerCache.data;}
+  throw e;
+ }
+}
+async function getScanKlines(sym){
+ const now=Date.now(),cached=scanKlineCache.get(sym);
+ if(cached?.data?.length>=30&&now-cached.at<HUNTER.klinesCacheMs)return cached.data;
+ try{
+  const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(sym)}&limit=150&_=${now}`,{cache:'no-store'});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok||!Array.isArray(d))throw new Error(d?.error||`Kline API ${r.status}`);
+  const cs=d.map(k=>({time:Math.floor(Number(k[0])/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
+  if(cs.length<30)throw new Error(`Kline ${sym} kurang dari 30 candle`);
+  const out=cs.slice(-150); scanKlineCache.set(sym,{at:now,data:out}); return out;
+ }catch(e){
+  if(cached?.data?.length>=30)return cached.data;
+  throw e;
+ }
+}
 const IDR=16000; const fmtP=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:priceDecimals(n)}); const fmtIDR=n=>'Rp '+Math.round(n||0).toLocaleString('id-ID');
 function priceDecimals(n){n=Math.abs(Number(n)||0);if(n>=1000)return 2;if(n>=100)return 3;if(n>=1)return 4;if(n>=0.1)return 5;if(n>=0.01)return 6;if(n>=0.001)return 7;return 8}
 function fmtTradeP(n){const d=priceDecimals(n);return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
