@@ -50,8 +50,23 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],lossCooldowns={};
 const LOSS_REENTRY_COOLDOWN_MS=15*60*1000;
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={minConfidence:62,switchAdvantage:2,scanMs:1500,candidateCount:30,cooldownMs:350,previewSwitchMs:2500,previewAdvantage:2,klinesCacheMs:3500};
+const HUNTER={minConfidence:62,switchAdvantage:2,scanMs:2500,candidateCount:16,cooldownMs:350,previewSwitchMs:1800,previewAdvantage:2,klinesCacheMs:8000};
 const scanKlineCache=new Map();
+let tickerCache={at:0,data:null};
+async function getScannerTicker(){
+  const now=Date.now();
+  if(tickerCache.data&&now-tickerCache.at<5000)return tickerCache.data;
+  try{
+    const r=await fetch('/api/market/ticker?_='+now,{cache:'no-store'});
+    const d=await r.json().catch(()=>null);
+    if(!r.ok||!Array.isArray(d)) throw Error(d?.error||`Ticker API ${r.status}`);
+    tickerCache={at:now,data:d};
+    return d;
+  }catch(e){
+    if(tickerCache.data){log(`Ticker sementara gagal (${e.message}) · pakai data terakhir`);return tickerCache.data;}
+    throw e;
+  }
+}
 const IDR=16000; const fmtP=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:priceDecimals(n)}); const fmtIDR=n=>'Rp '+Math.round(n||0).toLocaleString('id-ID');
 function priceDecimals(n){n=Math.abs(Number(n)||0);if(n>=1000)return 2;if(n>=100)return 3;if(n>=1)return 4;if(n>=0.1)return 5;if(n>=0.01)return 6;if(n>=0.001)return 7;return 8}
 function fmtTradeP(n){const d=priceDecimals(n);return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
@@ -269,7 +284,7 @@ function lossExitReason(current,best){
 async function scan(){
  if(hunterBusy)return; hunterBusy=true;
  try{
-  const r=await fetch('/api/market/ticker?_='+Date.now(),{cache:'no-store'}); if(!r.ok)throw Error('Ticker API '+r.status); const d=await r.json();
+  const d=await getScannerTicker();
   const liquid=d.filter(x=>x.symbol.endsWith('USDT')&&!x.symbol.includes('_')&&+x.quoteVolume>5e6&&x.symbol!=='USDCUSDT');
   const sorted=[...liquid].sort((a,b)=>Math.abs(+b.priceChangePercent)-Math.abs(+a.priceChangePercent));
   const volume=[...liquid].sort((a,b)=>+b.quoteVolume-+a.quoteVolume);
@@ -287,11 +302,18 @@ async function scan(){
       const now=Date.now(), cached=scanKlineCache.get(x.symbol);
       let cs=cached&&now-cached.at<HUNTER.klinesCacheMs?cached.cs:null;
       if(!cs){
-        let q=await fetch(`/api/market/klines?symbol=${x.symbol}&limit=90&_=${now}`,{cache:'no-store'});
-        if(!q.ok)return null;
-        let kd=await q.json();
-        cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
-        scanKlineCache.set(x.symbol,{at:now,cs});
+        try{
+          let q=await fetch(`/api/market/klines?symbol=${x.symbol}&limit=90&_=${now}`,{cache:'no-store'});
+          if(!q.ok)throw Error(`Kline ${q.status}`);
+          let kd=await q.json();
+          if(!Array.isArray(kd)||kd.length<25)throw Error('Kline data kosong');
+          cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
+          scanKlineCache.set(x.symbol,{at:now,cs});
+        }catch(err){
+          const stale=scanKlineCache.get(x.symbol);
+          if(stale?.cs?.length>=25){cs=stale.cs;}
+          else return null;
+        }
       }
       let a=analyzeData(cs);
       if(!a)return null;
