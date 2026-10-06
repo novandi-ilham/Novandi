@@ -14,13 +14,3 @@ V56 keeps the 15M-only Paper Engine and adds a strict pair-loss movement rule:
 - Paper storage is versioned to V56 so old V55 paper state is not silently reused.
 
 This is a risk-control mechanism, not a guarantee of profit.
-
-
-V67 Market Sync: production USDⓈ-M market data is hard-locked to fapi.binance.com; snapshot endpoint combines 15m kline + latest price for REST fallback/resync.
-
-V69: production USDⓈ-M market data only; no Testnet fallback.
-
-
-## V73 safety/data behavior
-
-The dashboard is paper-only. Binance USD-M Production remains the exact market source. If Production REST returns HTTP 451, the app may show exact completed-day candles from Binance Vision and a live Binance WebSocket current candle, but it marks history as unverified and blocks paper auto/manual entry until Production 15M history is verified. It does not switch to Testnet or another exchange and does not implement VPN/proxy geolocation bypass.
