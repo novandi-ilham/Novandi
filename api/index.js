@@ -60,7 +60,7 @@ export default async function handler(req,res){
   headers(res); if(req.method==='OPTIONS') return res.status(204).end();
   try{
     const path=new URL(req.url,'https://vercel.local').pathname;
-    if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,time:Date.now()});
+    if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,apiVersion:'v68',marketSource:'BINANCE_USDM_PRODUCTION',mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,time:Date.now()});
     if(path==='/api/market/ticker'&&req.method==='GET') return res.status(200).json(await marketBinance('/fapi/v1/ticker/24hr'));
     if(path==='/api/market/price'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v2/ticker/price',{params:{symbol}})); }
     if(path==='/api/market/klines'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}})); }
