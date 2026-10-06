@@ -54,3 +54,6 @@ Parameter utama di frontend: `minConfidence=70`, `switchAdvantage=10`, scan seki
 
 ## Validation
 The package passes Node syntax checks for the serverless API, local server and frontend JavaScript extraction. External Binance connectivity must still be validated in the deployed environment because this build environment may not have outbound DNS/network access.
+
+
+V8 patch: defines diagnoseMarketAccess() so startup cannot abort before history loading; adds explicit DIRECT/PROXY diagnostics and safer realtime polling.

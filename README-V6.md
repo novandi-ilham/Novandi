@@ -16,3 +16,6 @@ BINANCE_MARKET_BASE_URL=https://fapi.binance.com
 ```
 
 Trading remains controlled by the existing testnet/paper configuration. Market data always targets production Futures.
+
+
+V8 patch: defines diagnoseMarketAccess() so startup cannot abort before history loading; adds explicit DIRECT/PROXY diagnostics and safer realtime polling.
