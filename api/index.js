@@ -1,7 +1,10 @@
 import crypto from 'crypto';
 
 const BASE = process.env.BINANCE_BASE_URL || 'https://fapi.binance.com';
-const MARKET_BASE = process.env.BINANCE_MARKET_BASE_URL || 'https://fapi.binance.com';
+// Market data is ALWAYS production USDⓈ-M. Do not inherit the order/trading endpoint
+// (which may intentionally be Testnet) because that would make the chart disagree
+// with Binance's live BTCUSDT Perp chart.
+const MARKET_BASE = 'https://fapi.binance.com';
 const KEY = process.env.BINANCE_API_KEY || '';
 const SECRET = process.env.BINANCE_API_SECRET || '';
 const MAX_RISK_PCT = Math.min(1, Math.max(0.1, Number(process.env.MAX_RISK_PCT || 1)));
@@ -59,7 +62,9 @@ export default async function handler(req,res){
     const path=new URL(req.url,'https://vercel.local').pathname;
     if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,time:Date.now()});
     if(path==='/api/market/ticker'&&req.method==='GET') return res.status(200).json(await marketBinance('/fapi/v1/ticker/24hr'));
+    if(path==='/api/market/price'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v2/ticker/price',{params:{symbol}})); }
     if(path==='/api/market/klines'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}})); }
+    if(path==='/api/market/snapshot'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); const [kline,price]=await Promise.all([marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:2}}),marketBinance('/fapi/v2/ticker/price',{params:{symbol}})]); return res.status(200).json({source:'BINANCE_USDM_PRODUCTION',serverTime:Date.now(),symbol,kline:kline?.[kline.length-1]||null,price:Number(price?.price)}); }
     if(path==='/api/account'&&req.method==='GET'){
       if(!KEY||!SECRET) return res.status(200).json({connected:false,reason:'API key not configured'});
       const a=await binance('/fapi/v3/account',{signed:true});
