@@ -25,10 +25,7 @@ async function binance(path, { method='GET', params={}, signed=false, base=BASE 
 }
 
 async function marketBinance(path, options={}) {
-  // IMPORTANT: market/chart data must NEVER fall back to the trading base.
-  // If BINANCE_BASE_URL points at Futures Testnet and production market data
-  // fails, falling back here creates a chart that looks plausible but is NOT
-  // the same market as Binance production Futures.
+  // V5: market data is production-only. Never fall back to Testnet.
   return await binance(path,{...options,base:MARKET_BASE});
 }
 
@@ -36,7 +33,7 @@ async function readBody(req){
   if(req.body&&typeof req.body==='object') return req.body;
   return await new Promise((resolve,reject)=>{let raw='';req.on('data',c=>{raw+=c;if(raw.length>100000)reject(new Error('body too large'))});req.on('end',()=>{try{resolve(raw?JSON.parse(raw):{})}catch(e){reject(e)}});req.on('error',reject)});
 }
-function headers(res){res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');res.setHeader('Pragma','no-cache');res.setHeader('Expires','0');res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Content-Type','application/json; charset=utf-8')}
+function headers(res){res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0');res.setHeader('Pragma','no-cache');res.setHeader('Expires','0');res.setHeader('Vary','*');res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Content-Type','application/json; charset=utf-8')}
 function requireTrade(req){
   const isTestnet=BASE.includes('testnet');
   if(isTestnet){ if(!ALLOW_TESTNET) throw new Error('Testnet trading disabled.'); return; }
@@ -59,7 +56,23 @@ export default async function handler(req,res){
     if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,marketDataProduction:MARKET_BASE==='https://fapi.binance.com',marketBase:MARKET_BASE,time:Date.now()});
     if(path==='/api/market/ticker'&&req.method==='GET') return res.status(200).json(await marketBinance('/fapi/v1/ticker/24hr'));
     if(path==='/api/market/time'&&req.method==='GET') return res.status(200).json(await marketBinance('/fapi/v1/time'));
-    if(path==='/api/market/klines'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}})); }
+    if(path==='/api/market/klines'&&req.method==='GET'){
+      const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase();
+      if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'});
+      return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}}));
+    }
+    if(path==='/api/market/realtime'&&req.method==='GET'){
+      const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase();
+      if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'});
+      const started=Date.now();
+      const [klines,clock]=await Promise.all([
+        marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:2}}),
+        marketBinance('/fapi/v1/time')
+      ]);
+      const kline=Array.isArray(klines)&&klines.length?klines[klines.length-1]:null;
+      if(!kline) throw new Error('Binance realtime kline kosong');
+      return res.status(200).json({ok:true,source:'BINANCE_FUTURES_PRODUCTION',symbol,interval:'15m',serverTime:Number(clock.serverTime)||Date.now(),receivedAt:Date.now(),latencyMs:Date.now()-started,kline});
+    }
     if(path==='/api/account'&&req.method==='GET'){
       if(!KEY||!SECRET) return res.status(200).json({connected:false,reason:'API key not configured'});
       const a=await binance('/fapi/v3/account',{signed:true});
