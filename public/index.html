@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V73: GEO-SAFE BINANCE USD-M DATA / VISION ARCHIVE + WS / HARD PAPER RISK LOCK -->
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V75: BINANCE USD-M 15M / VISION HISTORY + DIRECT WS / HARD PAPER RISK LOCK -->
 <title>ilham novandi — Futures Command Center</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -48,13 +48,15 @@ window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const b=d
 document.addEventListener('click',async e=>{if(e.target?.id==='installBtn'&&deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;e.target.style.display='none'}});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let marketDataVerified=false,marketDataSource='NONE',marketDataError='',latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=false,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
+let marketDataVerified=false,marketDataSource='NONE',marketDataError='',liveMarketConnected=false,liveTickerCache={},liveTickerAt=0,latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=false,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={switchAdvantage:18,scanMs:1100,candidateCount:36,cooldownMs:350,klinesCacheMs:3000,maxConcurrent:8};
+const HUNTER={switchAdvantage:18,scanMs:5000,candidateCount:12,cooldownMs:350,klinesCacheMs:10000,maxConcurrent:4};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
 async function getScanTicker(){
  const now=Date.now();
- if(Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length&&now-scanTickerCache.at<2000)return scanTickerCache.data;
+ if(Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length&&now-scanTickerCache.at<3000)return scanTickerCache.data;
+ const wsRows=Object.values(liveTickerCache);
+ if(wsRows.length>=20 && now-liveTickerAt<5000){scanTickerCache={at:now,data:wsRows};return wsRows;}
  try{
   const r=await fetch(`/api/market/ticker?_=${now}`,{cache:'no-store'});
   const rawText=await r.text();
@@ -65,6 +67,7 @@ async function getScanTicker(){
   if(!clean.length)throw new Error('Ticker tidak berisi symbol valid');
   scanTickerCache={at:now,data:clean}; return clean;
  }catch(e){
+  if(wsRows.length>=5){scanTickerCache={at:now,data:wsRows};return wsRows;}
   if(Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length){log(`Ticker gagal · cache dipakai (${e.message})`);return scanTickerCache.data;}
   throw e;
  }
@@ -88,11 +91,23 @@ async function getScanKlines(sym){
   let out=cs.slice(-150); if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);}
   out=out.slice(-150); scanKlineCache.set(sym,{at:now,data:out}); return out;
  }catch(e){
-  if(cached?.data?.length>=30){
-    const out=cached.data.slice(); if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);} return out.slice(-150);
+  // When Production FAPI is geo-blocked, use Binance Vision's exact USD-M archive
+  // for scanner analysis. This is intentionally historical; auto-entry remains locked
+  // until current-day Production 15M is verified.
+  try{
+    const r=await fetch(`/api/market/history?symbol=${encodeURIComponent(sym)}&limit=96&_=${now}`,{cache:'no-store'});
+    const payload=await r.json().catch(()=>null); const rows=Array.isArray(payload?.rows)?payload.rows:[];
+    if(rows.length<30)throw new Error(payload?.error||'Vision history insufficient');
+    let out=rows.map(k=>({time:Math.floor(Number(k[0])/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite)).slice(-150);
+    if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);}
+    scanKlineCache.set(sym,{at:now,data:out}); return out.slice(-150);
+  }catch(archiveErr){
+    if(cached?.data?.length>=30){
+      const out=cached.data.slice(); if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);} return out.slice(-150);
+    }
+    throw archiveErr;
   }
-  throw e;
- }
+ } 
 }
 
 const IDR=16000; const fmtP=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:priceDecimals(n)}); const fmtIDR=n=>'Rp '+Math.round(n||0).toLocaleString('id-ID');
@@ -312,8 +327,10 @@ async function fetchProductionPrice(symbolName){
 function setMarketStatus(extra=''){
   const el=$('#conn'); if(!el)return;
   if(marketDataVerified) el.textContent='BINANCE PROD · 15M · VERIFIED'+(extra?' · '+extra:'');
-  else if(marketDataSource==='BINANCE_VISION_ARCHIVE'){el.textContent='BINANCE ARCHIVE · 15M · LIVE BLOCKED';auto=false;$('#autoToggle').textContent='AUTO OFF';}
-  else {el.textContent='MARKET DATA BLOCKED · BINANCE 451';auto=false;$('#autoToggle').textContent='AUTO OFF';}
+  else if(marketDataSource==='BINANCE_VISION_ARCHIVE'){
+    el.textContent=liveMarketConnected?'BINANCE ARCHIVE · 15M · WS LIVE · CURRENT-DAY GAP':'BINANCE ARCHIVE · 15M · HISTORY T-1';
+    auto=false;$('#autoToggle').textContent='AUTO OFF';
+  } else {el.textContent='MARKET DATA BLOCKED · BINANCE 451';auto=false;$('#autoToggle').textContent='AUTO OFF';}
 }
 async function loadCandles(){
   let last='unknown';
@@ -335,7 +352,7 @@ function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
   const c={symbol:sym,time:Math.floor(Number(k.t)/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v,closed:!!k.x,sourceTs:Date.now()};
   if(![c.time,c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite))return;
-  if(sym===symbol&&candles.length){ const last=candles.at(-1); if(c.time>last.time+900 && marketDataVerified){ resyncVisibleMarket(wsGeneration); return; } }
+  if(sym===symbol&&candles.length){ const last=candles.at(-1); if(c.time>last.time+900){ $('#conn').textContent=marketDataVerified?'BINANCE WS · GAP DETECTED · RESYNC REQUIRED':'BINANCE WS LIVE · CURRENT CANDLE · HISTORY GAP'; } }
   liveKlinesBySymbol.set(sym,c); latestPriceBySymbol[sym]=c.close; lastWsKlineAt=Date.now();
   const cached=scanKlineCache.get(sym); if(cached?.data?.length){const a=cached.data.slice(),i=a.findIndex(x=>x.time===c.time);if(i>=0)a[i]={...a[i],...c};else if(c.time>a.at(-1).time)a.push(c);scanKlineCache.set(sym,{...cached,data:a.slice(-150)})}
   if(sym!==symbol)return;
@@ -344,7 +361,7 @@ function applyLiveKline(k){
   if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
   if(hasValidPaperPosition()&&paperPos.symbol===sym&&enforceLiveRisk(c.close,'KLINE'))return;
   const ev=ema(candles.map(x=>x.close)).at(-1); if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
-  updateUI(); renderTradeVisuals(); $('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · 15M PROD · '+sym:'BINANCE WS LIVE · CURRENT CANDLE · HISTORY BLOCKED';
+  updateUI(); renderTradeVisuals(); $('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · 15M PROD · '+sym:(c.time>candles.at(-2)?.time+900?'BINANCE WS LIVE · CURRENT CANDLE · HISTORY GAP':'BINANCE WS LIVE · CURRENT CANDLE · '+sym);
 }
 function applyLiveTicker(t){
   const sym=String(t.s||'').toUpperCase(), price=Number(t.c);
@@ -378,12 +395,17 @@ async function readJsonResponse(r,label){
   try{return JSON.parse(text)}catch(e){throw new Error(`${label} JSON invalid`)}
 }
 async function pollLiveSnapshot(){
+  if(liveMarketConnected||ws?.readyState===1)return;
   try{
     const r=await fetch(`/api/market/snapshot?symbol=${encodeURIComponent(symbol)}&_=${Date.now()}`,{cache:'no-store',headers:{'Accept':'application/json'}});
     const snap=await readJsonResponse(r,'Snapshot API');
     applyRestSnapshot(snap);
-    if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST PRICE LIVE · USDⓈ-M PROD · '+symbol;
-  }catch(e){ if(!ws||ws.readyState!==1)$('#conn').textContent='MARKET DATA ERROR · '+e.message; }
+    $('#conn').textContent='BINANCE REST PRICE LIVE · USDⓈ-M PROD · '+symbol;
+  }catch(e){
+    // A 451 here is expected in the affected deployment region. Do not overwrite
+    // a healthy archive/WS state with a scary HTTP 500 banner.
+    if(!liveMarketConnected)$('#conn').textContent=marketDataSource==='BINANCE_VISION_ARCHIVE'?'BINANCE ARCHIVE · 15M · MENUNGGU LIVE WS':'MARKET DATA BLOCKED · BINANCE 451';
+  }
 }
 
 function applyLiveTrade(t){
@@ -418,32 +440,43 @@ async function resyncVisibleMarket(gen){
   }catch(e){if(gen===wsGeneration)$('#conn').textContent='KLINE SYNC ERROR · '+String(e.message||e).slice(0,90)}
 }
 
-function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([...marketWsSymbols])},1200)}
+function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([symbol])},1500)}
+function upsertLiveTicker(t){
+  const sym=String(t.s||'').toUpperCase(); const last=Number(t.c),open=Number(t.o),qv=Number(t.q),vol=Number(t.v);
+  if(!sym||!Number.isFinite(last)||last<=0)return;
+  liveTickerCache[sym]={symbol:sym,lastPrice:last,priceChangePercent:Number.isFinite(open)&&open>0?(last-open)/open*100:0,quoteVolume:Number.isFinite(qv)?qv:0,volume:Number.isFinite(vol)?vol:0};
+  liveTickerAt=Date.now(); latestPriceBySymbol[sym]=last;
+  if(sym===symbol){liveMarketConnected=true;$('#lastPrice').textContent=fmtP(last);if(hasValidPaperPosition()&&paperPos.symbol===sym)updatePosition(last);}
+}
+function connectTickerWS(){
+  try{
+    const tWs=new WebSocket('wss://fstream.binance.com/ws/!miniTicker@arr');
+    tWs.onmessage=ev=>{try{const p=JSON.parse(ev.data);if(Array.isArray(p))p.forEach(upsertLiveTicker);else if(p?.data){const d=p.data;Array.isArray(d)?d.forEach(upsertLiveTicker):upsertLiveTicker(d)}}catch{}};
+    tWs.onclose=()=>setTimeout(connectTickerWS,3000);
+    tWs.onerror=()=>{};
+  }catch{setTimeout(connectTickerWS,3000)}
+}
 function connectMarketWS(symbols=[]){
-  // The visible chart/PnL feed is intentionally one-symbol and persistent.
-  // Scanner candidates use REST/cache; only the visible symbol receives realtime WS data.
-  const clean=[...new Set(symbols.map(s=>String(s||'').toUpperCase()).filter(s=>/^[A-Z0-9]{5,30}$/.test(s)))].slice(0,1);
-  if(!clean.includes(symbol))clean.unshift(symbol);
-  const key=clean.sort().join(','); if(key===marketWsKey&&ws?.readyState===1)return;
-  marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; marketWsEpoch=Date.now(); clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
-  // IMPORTANT: Binance retired the legacy /stream endpoint on 2026-04-23.
-  // Use the current USDⓈ-M MARKET stream endpoint so kline + aggTrade stay live.
-  const streams=clean.map(s=>`${s.toLowerCase()}@kline_15m`).join('/');
-  const url='wss://fstream.binance.com/market/stream?streams='+streams;
+  const clean=[...new Set([symbol,...symbols].map(s=>String(s||'').toLowerCase()).filter(s=>/^[a-z0-9]{5,30}$/.test(s)))].slice(0,1);
+  const key=clean.join(','); if(key===marketWsKey&&ws?.readyState===1)return;
+  marketWsSymbols=new Set(clean.map(x=>x.toUpperCase())); marketWsKey=key; const gen=++wsGeneration; clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
+  // Raw stream is the least ambiguous form of Binance Futures market WS.
+  // 15M kline is the sole authority for OHLCV; ticker/price is only last price.
+  const url=`wss://fstream.binance.com/ws/${clean[0]}@kline_15m`;
   $('#conn').textContent='BINANCE WS CONNECTING · USDⓈ-M · 15M'; lastWsKlineAt=0; lastWsTradeAt=0;
   try{
     ws=new WebSocket(url);
-    ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=0;lastWsTradeAt=Date.now();$('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · USDⓈ-M · SYNCING':'BINANCE WS LIVE · USDⓈ-M · HISTORY BLOCKED';if(marketDataVerified)resyncVisibleMarket(gen)};
-    ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='24hrTicker')applyLiveTicker(payload)}catch{}};
-    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · PAPER ENTRY BLOCKED'};
-    ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · PAPER ENTRY BLOCKED';scheduleWsReconnect(gen)}};
-    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const ageK=lastWsKlineAt?Date.now()-lastWsKlineAt:Infinity; if(ws?.readyState===1&&ageK>15000){$('#conn').textContent='WS STALE · RECONNECTING';try{ws.close()}catch{}}},3000);
-  }catch(e){$('#conn').textContent='WS ERROR · REST FALLBACK';scheduleWsReconnect(gen)}
+    ws.onopen=()=>{if(gen!==wsGeneration)return;liveMarketConnected=true;lastWsKlineAt=0;$('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · USDⓈ-M · 15M VERIFIED':'BINANCE WS LIVE · CURRENT PRICE/CANDLE · HISTORY T-1';};
+    ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const payload=JSON.parse(ev.data);if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k)}catch{}};
+    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent=marketDataSource==='BINANCE_VISION_ARCHIVE'?'BINANCE ARCHIVE · WS ERROR · CURRENT DAY UNAVAILABLE':'BINANCE WS ERROR · PAPER ENTRY BLOCKED'};
+    ws.onclose=()=>{if(gen===wsGeneration){liveMarketConnected=false;clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · CURRENT DATA WAITING';scheduleWsReconnect(gen)}};
+    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const ageK=lastWsKlineAt?Date.now()-lastWsKlineAt:Infinity;if(ws?.readyState===1&&ageK>20000){$('#conn').textContent='WS STALE · RECONNECTING';try{ws.close()}catch{}}},4000);
+  }catch(e){liveMarketConnected=false;$('#conn').textContent='WS ERROR · HISTORY ONLY';scheduleWsReconnect(gen)}
 }
 function connectWS(){connectMarketWS([...marketWsSymbols,symbol])}
 let pollBusy=false;
 async function pollLiveCandle(){
- if(pollBusy||!candles.length)return; pollBusy=true;
+ if(pollBusy||!candles.length||liveMarketConnected)return; pollBusy=true;
  try{
   const d=await fetchProductionKlines(symbol); if(!Array.isArray(d)||!d.length)throw new Error('empty');
   const x=d[d.length-1]; applyLiveKline({s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false});
@@ -476,7 +509,7 @@ function lossExitReason(current,best){
  return null;
 }
 async function scan(){
- if(!marketDataVerified){$('#scanState').textContent='DATA BLOCKED · Binance 451';return;}
+ if(!marketDataVerified && Object.keys(liveTickerCache).length<5){$('#scanState').textContent='MENUNGGU BINANCE WS · TICKER';return;}
  if(hunterBusy)return; hunterBusy=true;
  const scanStarted=Date.now();
  try{
@@ -501,8 +534,8 @@ async function scan(){
   }).join('');
   $$('.sym').forEach(e=>e.onclick=()=>switchSymbol(e.dataset.s));
   $('#leaders').innerHTML='<div class="muted">Short Top Gainers</div>'+gainers.slice(0,5).map(x=>`<div class="kv"><span>${x.symbol}</span><b class="up">+${(Number(x.priceChangePercent)||0).toFixed(2)}%</b></div>`).join('')+'<div class="muted" style="margin-top:8px">Long Top Losers</div>'+losers.slice(0,5).map(x=>`<div class="kv"><span>${x.symbol}</span><b class="down">${(Number(x.priceChangePercent)||0).toFixed(2)}%</b></div>`).join('');
-  $('#scanState').textContent=`SCANNING 15M · ${universe.length} PAIR`;
-  if(!auto||killed||mode!=='paper'||Date.now()-lastSwitchAt<HUNTER.cooldownMs){hunterBusy=false;return;}
+  $('#scanState').textContent=marketDataVerified?`SCANNING 15M · ${universe.length} PAIR`:`SCANNING TICKER · ${universe.length} PAIR · HISTORY T-1`; 
+  if(!marketDataVerified||!auto||killed||mode!=='paper'||Date.now()-lastSwitchAt<HUNTER.cooldownMs){hunterBusy=false;return;}
   const ranked=[]; scanStats={ok:0,fail:0,total:universe.length,last:Date.now()}; let cursor=0;
   async function worker(){
    while(true){
@@ -619,10 +652,10 @@ function syncPaperStateUI(a=null){
   if(statusEl){statusEl.className='warning';statusEl.textContent=`POSISI AKTIF · ${p.side} ${p.symbol} · Entry ${fmtTradeP(p.entry)}`;}
   return true;
 }
-function guard(){if(!marketDataVerified)return['market data Binance 15M belum terverifikasi'];if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
+function guard(){if(!marketDataVerified)return['Binance 15M current-day belum terverifikasi'];if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
 function positionSize(price,sl){let risk=accountEquity*Number($('#risk').value)/100;let dist=Math.abs(price-sl);return dist?risk/dist:Number($('#qty').value)}
 function openPaper(side,forcedAnalysis=null,opts={}){
-  if(!marketDataVerified){log('ENTRY BLOCKED: market data Binance 15M belum terverifikasi');syncPaperStateUI();return false}
+  if(!marketDataVerified){log('ENTRY BLOCKED: Binance 15M current-day belum terverifikasi');syncPaperStateUI();return false}
   if(hasValidPaperPosition()){syncPaperStateUI();log(`ENTRY BLOCKED: sudah ada posisi ${paperPos.side} ${paperPos.symbol}`);return false}
   let a=forcedAnalysis||analyze();if(!a)return false;
   let g=opts.hunter?[]:guard();
@@ -706,5 +739,5 @@ function setMode(){mode='paper';$('#orderMode').value='paper';$('#mode').textCon
 function runBacktest(){let n=Math.min(Number($('#btLimit').value),candles.length-25),risk=Number($('#btRisk').value),rr=Number($('#btRR').value),start=candles.length-n,equity=0,peak=0,maxDD=0,wins=0,losses=0,net=0,worst=0,streak=0,best=-Infinity;for(let i=start+20;i<candles.length-1;i++){let sub=candles.slice(0,i+1),old=candles; candles=sub;let a=analyze();candles=old;if(!a)continue;let signal=$('#btStrategy').value==='reversal'?(a.wick===1?'LONG':a.wick===-1?'SHORT':null):a.bias==='LONG'?'LONG':a.bias==='SHORT'?'SHORT':null;if(!signal||!a.allowed)continue;let entry=candles[i].close,slPct=Number($('#slPct').value)/100,sl=signal==='LONG'?entry*(1-slPct):entry*(1+slPct),tp=signal==='LONG'?entry*(1+slPct*rr):entry*(1-slPct*rr),out=null;for(let j=i+1;j<candles.length;j++){let c=candles[j];if(signal==='LONG'){if(c.low<=sl){out=-1;break}if(c.high>=tp){out=rr;break}}else{if(c.high>=sl){out=-1;break}if(c.low<=tp){out=rr;break}}}if(out===null)continue;net+=out;equity+=out*risk;best=Math.max(best,out);if(out>0){wins++;streak=0}else{losses++;streak++;worst=Math.max(worst,streak)}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}let trades=wins+losses,pf=losses?wins*rr/losses:Infinity;$('#btTrades').textContent=trades;$('#btWin').textContent=trades?(wins/trades*100).toFixed(1)+'%':'—';$('#btPF').textContent=Number.isFinite(pf)?pf.toFixed(2):'∞';$('#btDD').textContent=maxDD.toFixed(2)+'%';$('#btNet').textContent=net.toFixed(2)+'R';$('#btStreak').textContent=worst;$('#btBest').textContent=best===-Infinity?'—':best.toFixed(2)+'R';$('#btSummary').textContent=trades?`Hasil simulasi 15M: ${trades} trade, ${wins} win, ${losses} loss. Consecutive loss terburuk ${worst}. Gunakan hasil ini untuk mengukur robustness, bukan jaminan hasil masa depan.`:'Tidak ada setup valid pada periode tersebut.';log('Backtest selesai: '+trades+' trades')}
 $$('[data-tool]').forEach(b=>b.onclick=()=>{$$('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool});$('#srBtn').onclick=()=>{srActive=!srActive;$('#srBtn').classList.toggle('active',srActive);if(srActive)drawSR();else{drawings.forEach(x=>x.remove?.());drawings=[]}};$('#clearDraw').onclick=()=>{drawings.forEach(x=>x.remove?.());drawings=[]};$('#buyBtn').onclick=()=>submitOrder('BUY');$('#sellBtn').onclick=()=>submitOrder('SELL');$('#closeBtn').onclick=closePosition;$('#beBtn').onclick=()=>{if(paperPos){paperPos.sl=paperPos.entry*(paperPos.side==='BUY'?1.0002:.9998);paperPos.be=true;renderPosition();log('Manual SL Plus / BE')}};$('#partialBtn').onclick=()=>{if(paperPos&&!paperPos.partial){paperPos.qty*=.5;paperPos.partial=true;log('Partial TP: 50% size dikunci')}};$('#trailBtn').onclick=()=>{if(paperPos){paperPos.trail=!paperPos.trail;log('Trailing '+(paperPos.trail?'ON':'OFF'))}};$('#orderMode').onchange=setMode;['margin','lev','risk','slPct','rr','maxFloatLoss','profitGiveback','negativeScans'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener('input',()=>{renderPaperOrderPreview();persist();});el.addEventListener('change',()=>{renderPaperOrderPreview();persist();});}});$('#accountBtn').onclick=account;$('#refreshScan').onclick=scan;$('#autoToggle').onclick=()=>{auto=!auto;$('#autoToggle').textContent=auto?'AUTO ON':'AUTO OFF'};$('#killBtn').onclick=()=>{killed=!killed;$('#killBtn').textContent='KILL SWITCH: '+(killed?'ON':'OFF');$('#killBtn').classList.toggle('active',killed);if(killed)log('KILL SWITCH AKTIF — auto entry diblokir')};$('#runBacktest').onclick=runBacktest;
 $('#resetPaperBtn')?.addEventListener('click',()=>{if(!confirm('Reset akun paper ke Rp 10.000.000? Posisi dan riwayat paper akan dihapus.'))return;paperPos=null;paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};tradeHistory=[];tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};accountEquity=10000000;killed=false;auto=false;$('#autoToggle').textContent='AUTO OFF';localStorage.removeItem('ilhamPaperStateV58');localStorage.removeItem('ilhamPaperStateV62');clearPositionVisuals();persist();renderPosition();updatePaperAccount(0);$('#dailyLossOut').textContent=fmtIDR(0);$('#lossStreak').textContent='0';log('PAPER ACCOUNT RESET · Rp 10.000.000 · ledger bersih');});
-(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';try{await loadCandles();pollLiveSnapshot();connectWS();renderPosition();await scan();log('System ready · 15M only · market feed checked · PAPER default')}catch(e){setMarketStatus();log('Market init blocked: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,5000);setInterval(pollLiveSnapshot,2000);setInterval(scan,HUNTER.scanMs)})();
+(async()=>{initChart();restore();auto=false;$('#autoToggle').textContent='AUTO OFF';renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';connectTickerWS();try{await loadCandles();connectWS();renderPosition();await new Promise(r=>setTimeout(r,1200));await scan();log('System ready · 15M only · Binance WS + Vision history · PAPER safe mode')}catch(e){setMarketStatus();log('Market init blocked: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,10000);setInterval(pollLiveSnapshot,5000);setInterval(scan,HUNTER.scanMs)})();
 </script></body></html>
