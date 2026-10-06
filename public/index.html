@@ -54,6 +54,34 @@ let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings
 // reach Binance. WebSocket is direct as well; REST reconciliation remains active.
 const BINANCE_PUBLIC='https://fapi.binance.com';
 let marketSource='DIRECT';
+let marketDiagnostic={direct:'NOT_TESTED',proxy:'NOT_TESTED',directStatus:null,proxyStatus:null,error:''};
+async function diagnoseMarketAccess(){
+  // IMPORTANT: this diagnostic must never abort application startup.
+  // V7 referenced this function but did not define it, so initialization stopped
+  // before loadCandles(), leaving an empty chart while WS kept reconnecting.
+  marketDiagnostic={direct:'TESTING',proxy:'TESTING',directStatus:null,proxyStatus:null,error:''};
+  const directUrl=BINANCE_PUBLIC+'/fapi/v1/time?_diag='+Date.now();
+  try{
+    const ac=new AbortController(); const timer=setTimeout(()=>ac.abort(),7000);
+    const r=await fetch(directUrl,{cache:'no-store',signal:ac.signal}); clearTimeout(timer);
+    marketDiagnostic.directStatus=r.status;
+    if(r.ok){marketDiagnostic.direct='OK';marketSource='DIRECT';log('Market diagnostic · DIRECT Binance OK');}
+    else{marketDiagnostic.direct='HTTP '+r.status;log('Market diagnostic · DIRECT Binance HTTP '+r.status);}
+  }catch(e){marketDiagnostic.direct='ERROR';marketDiagnostic.error=String(e?.name||e?.message||e);log('Market diagnostic · DIRECT error: '+marketDiagnostic.error);}
+  try{
+    const r=await fetch('/api/market/diagnostic?_diag='+Date.now(),{cache:'no-store'});
+    marketDiagnostic.proxyStatus=r.status;
+    const d=await r.clone().json().catch(()=>({}));
+    if(r.ok&&d.ok){marketDiagnostic.proxy='OK';log('Market diagnostic · SERVER proxy OK');}
+    else{marketDiagnostic.proxy='HTTP '+r.status+(d?.error?' · '+d.error:'');log('Market diagnostic · SERVER proxy '+marketDiagnostic.proxy);}
+  }catch(e){marketDiagnostic.proxy='ERROR';log('Market diagnostic · SERVER proxy error: '+String(e?.message||e));}
+  if(marketDiagnostic.direct==='OK') marketSource='DIRECT';
+  else if(marketDiagnostic.proxy==='OK') marketSource='SERVER-PROXY';
+  else marketSource='UNAVAILABLE';
+  const detail=`DIRECT=${marketDiagnostic.direct} · PROXY=${marketDiagnostic.proxy}`;
+  $('#conn').textContent='MARKET DIAGNOSTIC · '+detail;
+  return marketDiagnostic;
+}
 function marketProxyPath(path){
  if(path==='/fapi/v1/time') return '/api/market/time';
  if(path==='/fapi/v1/klines') return '/api/market/klines';
@@ -70,6 +98,8 @@ async function fetchBinancePublic(path, params={}){
    if(r.ok){marketSource='DIRECT';return r;}
    if(r.status!==451&&r.status!==403) throw new Error(`Binance ${r.status}`);
  }catch(e){
+   marketDiagnostic.direct='ERROR';
+   marketDiagnostic.error=String(e?.name||e?.message||e);
    // Browser direct access failed/restricted; fall through to the server proxy.
  }
  const proxyPath=marketProxyPath(path);
@@ -332,7 +362,7 @@ async function scan(){
   $('#scanState').textContent='SCANNING 15M';
   if(auto&&!killed&&mode==='paper'&&Date.now()-lastSwitchAt>=HUNTER.cooldownMs){
    const ranked=[];
-   const results=await Promise.all(universe.map(async x=>{try{let q=await fetchBinancePublic('/fapi/v1/klines',{symbol:x.symbol,interval:'15m',limit:'150'});if(!q.ok)return null;let kd=await q.json();let cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));let a=analyzeData(cs);if(!a||!a.allowed)return null;return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume};}catch{return null}}));
+   const results=await Promise.all(universe.map(async x=>{try{let q=await fetchBinancePublic('/fapi/v1/klines',{symbol:x.symbol,interval:'15m',limit:'80'});if(!q.ok)return null;let kd=await q.json();let cs=kd.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));let a=analyzeData(cs);if(!a||!a.allowed)return null;return {symbol:x.symbol,score:a.score,bias:a.bias,analysis:a,change:+x.priceChangePercent,volume:+x.quoteVolume};}catch{return null}}));
    results.filter(Boolean).forEach(x=>ranked.push(x)); ranked.sort((a,b)=>b.score-a.score);
    const best=ranked[0]; const current=paperPos?analyze():null; const currentScore=current?.score||0;
    const active=hasValidPaperPosition(); const exitReason=active?lossExitReason(current,best):null;
@@ -421,5 +451,5 @@ async function account(){if(mode==='paper'){updatePaperAccount(hasValidPaperPosi
 function setMode(){mode=$('#orderMode').value;$('#mode').textContent=mode.toUpperCase()+' · 15M';$('#liveWarning').className=mode==='live'?'dangerbox':mode==='testnet'?'warning':'goodbox';$('#liveWarning').textContent=mode==='live'?'LIVE AKTIF hanya jika server ALLOW_LIVE_TRADING=true.':mode==='testnet'?'TESTNET: gunakan API Testnet, bukan API production.':'PAPER: tidak ada order sungguhan.';account()}
 function runBacktest(){let n=Math.min(Number($('#btLimit').value),candles.length-25),risk=Number($('#btRisk').value),rr=Number($('#btRR').value),start=candles.length-n,equity=0,peak=0,maxDD=0,wins=0,losses=0,net=0,worst=0,streak=0,best=-Infinity;for(let i=start+20;i<candles.length-1;i++){let sub=candles.slice(0,i+1),old=candles; candles=sub;let a=analyze();candles=old;if(!a)continue;let signal=$('#btStrategy').value==='reversal'?(a.wick===1?'LONG':a.wick===-1?'SHORT':null):a.bias==='LONG'?'LONG':a.bias==='SHORT'?'SHORT':null;if(!signal||!a.allowed)continue;let entry=candles[i].close,slPct=Number($('#slPct').value)/100,sl=signal==='LONG'?entry*(1-slPct):entry*(1+slPct),tp=signal==='LONG'?entry*(1+slPct*rr):entry*(1-slPct*rr),out=null;for(let j=i+1;j<candles.length;j++){let c=candles[j];if(signal==='LONG'){if(c.low<=sl){out=-1;break}if(c.high>=tp){out=rr;break}}else{if(c.high>=sl){out=-1;break}if(c.low<=tp){out=rr;break}}}if(out===null)continue;net+=out;equity+=out*risk;best=Math.max(best,out);if(out>0){wins++;streak=0}else{losses++;streak++;worst=Math.max(worst,streak)}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}let trades=wins+losses,pf=losses?wins*rr/losses:Infinity;$('#btTrades').textContent=trades;$('#btWin').textContent=trades?(wins/trades*100).toFixed(1)+'%':'—';$('#btPF').textContent=Number.isFinite(pf)?pf.toFixed(2):'∞';$('#btDD').textContent=maxDD.toFixed(2)+'%';$('#btNet').textContent=net.toFixed(2)+'R';$('#btStreak').textContent=worst;$('#btBest').textContent=best===-Infinity?'—':best.toFixed(2)+'R';$('#btSummary').textContent=trades?`Hasil simulasi 15M: ${trades} trade, ${wins} win, ${losses} loss. Consecutive loss terburuk ${worst}. Gunakan hasil ini untuk mengukur robustness, bukan jaminan hasil masa depan.`:'Tidak ada setup valid pada periode tersebut.';log('Backtest selesai: '+trades+' trades')}
 $$('[data-tool]').forEach(b=>b.onclick=()=>{$$('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool});$('#srBtn').onclick=()=>{srActive=!srActive;$('#srBtn').classList.toggle('active',srActive);if(srActive)drawSR();else{drawings.forEach(x=>x.remove?.());drawings=[]}};$('#clearDraw').onclick=()=>{drawings.forEach(x=>x.remove?.());drawings=[]};$('#buyBtn').onclick=()=>submitOrder('BUY');$('#sellBtn').onclick=()=>submitOrder('SELL');$('#closeBtn').onclick=closePosition;$('#beBtn').onclick=()=>{if(paperPos){paperPos.sl=paperPos.entry*(paperPos.side==='BUY'?1.0002:.9998);paperPos.be=true;renderPosition();log('Manual SL Plus / BE')}};$('#partialBtn').onclick=()=>{if(paperPos&&!paperPos.partial){paperPos.qty*=.5;paperPos.partial=true;log('Partial TP: 50% size dikunci')}};$('#trailBtn').onclick=()=>{if(paperPos){paperPos.trail=!paperPos.trail;log('Trailing '+(paperPos.trail?'ON':'OFF'))}};$('#orderMode').onchange=setMode;['margin','lev','risk','slPct','rr','maxFloatLoss','profitGiveback','negativeScans'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener('input',()=>{renderPaperOrderPreview();persist();});el.addEventListener('change',()=>{renderPaperOrderPreview();persist();});}});$('#accountBtn').onclick=account;$('#refreshScan').onclick=scan;$('#autoToggle').onclick=()=>{auto=!auto;$('#autoToggle').textContent=auto?'AUTO ON':'AUTO OFF'};$('#killBtn').onclick=()=>{killed=!killed;$('#killBtn').textContent='KILL SWITCH: '+(killed?'ON':'OFF');$('#killBtn').classList.toggle('active',killed);if(killed)log('KILL SWITCH AKTIF — auto entry diblokir')};$('#runBacktest').onclick=runBacktest;
-(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol;symbolGeneration++;const bootGen=symbolGeneration;try{await diagnoseMarketAccess();await syncBinanceClock();setInterval(syncBinanceClock,30000);const historyOK=await loadCandles(symbol,bootGen);if(bootGen===symbolGeneration){if(historyOK)await reconcileRealtime();connectWS(symbol,bootGen);}renderPosition();if(historyOK)await scan();else $('#scanState').textContent='MARKET BLOCKED';log('System ready · 15M · WebSocket-first · REST history/reconciliation · Binance Futures Production')}catch(e){log('Init error: '+e.message);try{connectWS(symbol,bootGen)}catch{}}setInterval(updateUI,1000);setInterval(reconcileRealtime,1000);setInterval(scan,HUNTER.scanMs)})();
+(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol;symbolGeneration++;const bootGen=symbolGeneration;try{await diagnoseMarketAccess();await syncBinanceClock();setInterval(syncBinanceClock,30000);const historyOK=await loadCandles(symbol,bootGen);if(bootGen===symbolGeneration){if(historyOK)await reconcileRealtime();connectWS(symbol,bootGen);}renderPosition();if(historyOK)await scan();else { $('#scanState').textContent='MARKET BLOCKED'; $('#conn').textContent=`MARKET UNAVAILABLE · ${marketDiagnostic.direct} · ${marketDiagnostic.proxy}`; }log('System ready · 15M · WebSocket-first · REST history/reconciliation · Binance Futures Production')}catch(e){log('Init error: '+e.message);try{connectWS(symbol,bootGen)}catch{}}setInterval(updateUI,1000);setInterval(reconcileRealtime,2000);setInterval(scan,HUNTER.scanMs)})();
 </script></body></html>
