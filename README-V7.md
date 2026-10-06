@@ -22,3 +22,7 @@ BINANCE_MARKET_BASE_URL=https://fapi.binance.com
 
 
 V8 patch: defines diagnoseMarketAccess() so startup cannot abort before history loading; adds explicit DIRECT/PROXY diagnostics and safer realtime polling.
+
+
+## V9 diagnostic correction
+The market diagnostic now reports the upstream Binance HTTP status instead of treating the diagnostic application's HTTP 200 wrapper as a successful market-data response.

@@ -20,3 +20,7 @@ The first variable is for the existing trading/testnet workflow. The second is t
 
 ## Binance source
 Binance USDⓈ-M Futures documents the 15m kline stream at `wss://fstream.binance.com/market/ws/{symbol}@kline_15m` and the combined `/market/stream` form. Kline updates are pushed every 250ms.
+
+
+## V9 diagnostic correction
+The market diagnostic now reports the upstream Binance HTTP status instead of treating the diagnostic application's HTTP 200 wrapper as a successful market-data response.
