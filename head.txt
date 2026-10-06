@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V72: DIRECT BINANCE PROD 15M KLINE + STABLE MARKET SYNC + HARD RISK LOCK -->
+<title>ilham novandi — Futures Command Center</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#060a10;--panel:#0c131e;--panel2:#101a27;--line:#1b2a3d;--text:#e9f0f8;--muted:#7f90a6;--green:#19d59a;--red:#ff5c72;--yellow:#f4c44f;--cyan:#4de1ff;--blue:#63a8ff;--purple:#a77bff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 500px at 70% -10%,#122844 0%,var(--bg) 58%);color:var(--text);font:13px/1.45 Inter,system-ui,Arial,sans-serif}button,input,select{font:inherit}button{cursor:pointer}.install-note{position:fixed;left:12px;right:12px;bottom:12px;z-index:100;background:#0c1825ee;border:1px solid #1b2a3d;border-radius:12px;padding:10px;box-shadow:0 12px 40px #0008;display:none}.top{position:sticky;top:0;z-index:20;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#08101aee;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.brand{font-size:18px;font-weight:850}.brand span{color:var(--cyan)}.status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 14px var(--green)}.mode,.pill{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:5px 9px;color:var(--yellow);font-size:11px}.wrap{max-width:1900px;margin:auto;padding:12px;display:grid;grid-template-columns:265px minmax(500px,1fr) 355px;gap:12px}.panel{background:linear-gradient(180deg,#0d1622,#09111b);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 10px 30px #0005}.phead{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:800;display:flex;justify-content:space-between;align-items:center}.pbody{padding:11px}.section{margin-top:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.kv{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #172333}.muted{color:var(--muted)}.up{color:var(--green)}.down{color:var(--red)}.yellow{color:var(--yellow)}.btn{border:1px solid var(--line);background:#111c2a;color:var(--text);border-radius:8px;padding:7px 9px}.btn:hover{border-color:#42617f}.btn.active{background:#183653;border-color:#4e83b1}.buy{background:#0a4b3a;border-color:#147d5d;color:#7affd6}.sell{background:#571c2b;border-color:#913248;color:#ffb3bf}.danger{background:#531923;border-color:#8d3040}.cyan{border-color:#1c7285;background:#0d2730}.form{display:grid;gap:7px}.form input,.form select{width:100%;background:#09111b;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}.symbols{max-height:500px;overflow:auto}.sym{padding:9px;border-bottom:1px solid #172333;display:flex;justify-content:space-between;cursor:pointer}.sym:hover,.sym.active{background:#142438}.score{font-size:30px;font-weight:900}.bar{height:7px;background:#172433;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green))}.chartbox{height:575px;position:relative}.chart{width:100%;height:100%}.overlay{position:absolute;top:9px;left:9px;right:9px;z-index:3;display:flex;gap:6px;flex-wrap:wrap}.tag{padding:5px 8px;border-radius:7px;border:1px solid var(--line);background:#07101ddd;font-size:11px}.charttools{position:absolute;bottom:8px;left:8px;z-index:4;display:flex;gap:5px;flex-wrap:wrap}.tradegrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.tradegrid .btn{padding:11px}.metricgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.metric{background:#0a121d;border:1px solid var(--line);border-radius:9px;padding:9px}.metric b{display:block;font-size:16px}.logs{max-height:185px;overflow:auto;font:11px ui-monospace,monospace}.log{padding:5px 0;border-bottom:1px dashed #1b2a3d}.tabs{display:flex;gap:6px;overflow:auto;padding:8px;border-bottom:1px solid var(--line)}.tab{white-space:nowrap}.edu{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.card{background:#0a121d;border:1px solid var(--line);border-radius:9px;padding:9px}.card b{display:block;margin-bottom:3px}.dangerbox{border:1px solid #7c2938;background:#32131a;border-radius:9px;padding:9px}.goodbox{border:1px solid #176c53;background:#0a2b22;border-radius:9px;padding:9px}.warning{border:1px solid #765f25;background:#2c2410;border-radius:9px;padding:9px}.backtest{display:grid;grid-template-columns:230px 1fr;gap:10px}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:7px;border-bottom:1px solid var(--line);text-align:left}.small{font-size:11px}@media(max-width:1250px){.wrap{grid-template-columns:220px 1fr}.right{grid-column:1/-1}.edu{grid-template-columns:repeat(2,1fr)}}@media(max-width:820px){.wrap{grid-template-columns:1fr}.right{grid-column:auto}.chartbox{height:450px}.metricgrid{grid-template-columns:1fr 1fr}.edu{grid-template-columns:1fr}.backtest{grid-template-columns:1fr}.top{height:auto;min-height:64px}}
+</style></head>
+<body>
+<header class="top"><div class="brand">⚡ <span>ilham novandi</span> · Futures Command Center</div><div class="status"><span class="dot" id="dot"></span><span id="conn">MARKET</span><span class="mode" id="mode">PAPER · 15M</span><button class="btn cyan" id="installBtn" style="display:none">INSTALL APP</button><button class="btn danger" id="killBtn">KILL SWITCH: OFF</button></div></header>
+<main class="wrap">
+<aside class="left">
+<section class="panel"><div class="phead">PAIR SCANNER <span class="pill" id="scanState">READY</span></div><div class="pbody grid2"><button class="btn" id="refreshScan">Refresh</button><button class="btn active" id="autoToggle">AUTO ON</button></div><div class="symbols" id="symbols"></div></section>
+<section class="panel section"><div class="phead">ACCOUNT · IDR</div><div class="pbody"><div class="kv"><span>Status</span><b id="acctStatus">PAPER</b></div><div class="kv"><span>Wallet</span><b id="balance">Rp 10.000.000</b></div><div class="kv"><span>Available</span><b id="available">Rp 10.000.000</b></div><div class="kv"><span>Unrealized</span><b id="unrealized">Rp 0</b></div><div class="kv"><span>Paper PnL</span><b id="paperPnl">Rp 0</b></div><div class="muted" style="font-size:11px;margin-top:6px">Wallet berubah setelah posisi ditutup; PnL berjalan tampil di Unrealized.</div><button class="btn" style="width:100%;margin-top:8px" id="accountBtn">Sync Binance Account</button><button class="btn" style="width:100%;margin-top:6px" id="resetPaperBtn">Reset Paper Account · Rp 10.000.000</button></div></section>
+<section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.35" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="0.2" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Loss moves before close<input id="negativeScans" type="number" value="3" min="2" max="3" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
+</aside>
+<main>
+<section class="panel"><div class="tabs"><button class="btn active" data-tf="15m">15M ONLY</button><span class="pill">EMA20</span><span class="pill">S/R</span><span class="pill">FIB</span><span class="pill">WICK</span><span class="pill">BREAKOUT</span></div><div class="chartbox"><div id="chart" class="chart"></div><div class="overlay"><span class="tag" id="symbolTitle">BTCUSDT PERP · USDⓈ-M</span><span class="tag" id="lastPrice">—</span><span class="tag" id="ohlc">O — H — L — C —</span><span class="tag" id="candleDir">CANDLE —</span><span class="tag" id="candleTimer">CLOSE —</span><span class="tag" id="regime">REGIME —</span><span class="tag" id="noTrade">TRADE CHECK —</span></div><div class="tag" style="position:absolute;right:8px;bottom:8px;z-index:4;border-color:#19d59a;color:#b8ffe9">● AUTO ENTRY · ▲ BUY / ▼ SELL · garis Entry / SL / TP</div><div class="charttools"><button class="btn active" data-tool="none">Pointer</button><button class="btn" data-tool="trend">Trendline</button><button class="btn" data-tool="fib">Fib</button><button class="btn" id="srBtn">Auto S/R</button><button class="btn" id="clearDraw">Clear</button></div></div></section>
+<section class="panel section"><div class="phead">MARKET INTELLIGENCE · 15M</div><div class="pbody"><div class="metricgrid"><div class="metric"><span class="muted">Confidence</span><b id="confidence">—</b></div><div class="metric"><span class="muted">Bias</span><b id="bias">—</b></div><div class="metric"><span class="muted">EMA20</span><b id="ema">—</b></div><div class="metric"><span class="muted">R:R</span><b id="rrOut">1 : 2</b></div></div><div style="margin-top:8px" class="bar"><i id="confidenceBar"></i></div><div id="reason" class="small muted" style="margin-top:7px">Menunggu data...</div></div></section>
+<section class="panel section"><div class="phead">PAPER ENGINE → SIGNAL → RISK → ENTRY → SL/TP → BREAK EVEN</div><div class="pbody"><div class="grid2"><div><div class="score" id="engineScore">—</div><div class="muted">Engine score</div></div><div><div id="engineStatus" class="goodbox">PAPER ENGINE AKTIF</div></div></div><div class="tradegrid" style="margin-top:9px"><button class="btn buy" id="buyBtn">▲ BUY / LONG</button><button class="btn sell" id="sellBtn">▼ SELL / SHORT</button></div><div class="grid3" style="margin-top:8px"><button class="btn" id="beBtn">SL PLUS / BE</button><button class="btn" id="partialBtn">TP PARTIAL</button><button class="btn" id="trailBtn">TRAILING</button></div></div></section>
+<section class="panel section"><div class="phead">ACTIVE POSITION ENGINE <button class="btn danger" id="closeBtn">TUTUP POSISI</button></div><div class="pbody" id="position"><div class="muted">Tidak ada posisi.</div></div></section>
+<section class="panel section"><div class="phead">PAPER PERFORMANCE · REALTIME</div><div class="pbody"><div class="metricgrid"><div class="metric"><span class="muted">Total trade</span><b id="perfTrades">0</b></div><div class="metric"><span class="muted">Win rate</span><b id="perfWin">0%</b></div><div class="metric"><span class="muted">Net PnL</span><b id="perfNet">Rp 0</b></div><div class="metric"><span class="muted">Profit factor</span><b id="perfPF">—</b></div></div><div class="grid3" style="margin-top:8px"><div class="metric"><span class="muted">Best trade</span><b id="perfBest">Rp 0</b></div><div class="metric"><span class="muted">Worst trade</span><b id="perfWorst">Rp 0</b></div><div class="metric"><span class="muted">Consecutive loss</span><b id="perfStreak">0</b></div></div><div id="perfLive" class="goodbox" style="margin-top:8px">Posisi aktif: belum ada</div><div id="perfHistory" class="small muted" style="margin-top:8px">Belum ada trade yang ditutup.</div></div></section><section class="panel section"><div class="phead">BACKTEST CENTER · 15M</div><div class="pbody backtest"><div class="form"><label>Lookback candle<input id="btLimit" type="number" value="500" min="100" max="1500"></label><label>Risk %<input id="btRisk" type="number" value="0.75" min="0.1" max="2"></label><label>R:R<input id="btRR" type="number" value="2" min="1" max="5" step="0.5"></label><label>Strategy<select id="btStrategy"><option value="trend">EMA20 + Breakout + S/R</option><option value="reversal">Wick Reversal + S/R</option><option value="hybrid">Hybrid 15M</option></select></label><button class="btn cyan" id="runBacktest">RUN BACKTEST</button></div><div><div class="metricgrid"><div class="metric"><span class="muted">Trades</span><b id="btTrades">—</b></div><div class="metric"><span class="muted">Win rate</span><b id="btWin">—</b></div><div class="metric"><span class="muted">Profit factor</span><b id="btPF">—</b></div><div class="metric"><span class="muted">Max DD</span><b id="btDD">—</b></div></div><div class="grid3" style="margin-top:8px"><div class="metric"><span class="muted">Net R</span><b id="btNet">—</b></div><div class="metric"><span class="muted">Worst streak</span><b id="btStreak">—</b></div><div class="metric"><span class="muted">Best R</span><b id="btBest">—</b></div></div><div id="btSummary" class="warning" style="margin-top:8px">Jalankan backtest untuk mengukur consecutive loss dan drawdown.</div></div></div></section>
+</main>
+<aside class="right">
+<section class="panel"><div class="phead">ORDER CONTROL</div><div class="pbody form"><label>Mode<select id="orderMode"><option value="paper">PAPER</option><option value="testnet">TESTNET</option><option value="live">LIVE</option></select></label><label>Margin / Trade (IDR)<input id="margin" type="number" value="500000" min="10000" step="10000"></label><label>Leverage<input id="lev" type="number" value="10" min="1" max="125" step="1"></label><div class="grid2"><div class="metric"><span class="muted">Position Size</span><b id="positionSizeOut">Rp 5.000.000</b></div><div class="metric"><span class="muted">Margin</span><b id="marginOut">Rp 500.000</b></div></div><label>Quantity (manual non-paper)<input id="qty" type="number" value="0.001" min="0.000001" step="0.001"></label><label>SL %<input id="slPct" type="number" value="0.8" step="0.1"></label><label>R:R<input id="rr" type="number" value="2" step="0.5"></label><div class="grid2"><div class="metric"><span class="muted">SL</span><b id="slOut">—</b></div><div class="metric"><span class="muted">TP</span><b id="tpOut">—</b></div></div><div id="liveWarning" class="dangerbox">LIVE TERKUNCI. PAPER adalah default.</div></div></section>
+<section class="panel section"><div class="phead">TOP GAINERS / LOSERS</div><div class="pbody" id="leaders"><div class="muted">Loading…</div></div></section>
+<section class="panel section"><div class="phead">NO-TRADE ZONE</div><div class="pbody"><div id="guardReasons" class="muted">Belum ada alasan.</div></div></section>
+<section class="panel section"><div class="phead">SYSTEM LOG</div><div class="pbody logs" id="logs"></div></section>
+</aside>
+</main>
+<section class="panel" style="max-width:1900px;margin:0 auto 12px"><div class="phead">TRADING CHECKLIST & EDUKASI</div><div class="pbody edu">
+<div class="card"><b>Breakout Setup</b><span class="muted">15M close di atas resistance + volume/momentum + retest bila tersedia.</span></div>
+<div class="card"><b>Stop Order / Candle</b><span class="muted">Entry dikonfirmasi setelah candle 15M valid; jangan mengejar wick.</span></div>
+<div class="card"><b>Limit Order · Pasukan Pucuk</b><span class="muted">Uji limit order di backtest; ukur fill rate dan adverse excursion.</span></div>
+<div class="card"><b>SL Plus / Break Even</b><span class="muted">Setelah profit mencapai ambang R, pindahkan SL untuk melindungi modal.</span></div>
+<div class="card"><b>Range vs Major Trend</b><span class="muted">Karena fokus 15M, gunakan struktur range/impulse pada timeframe yang sama.</span></div>
+<div class="card"><b>Risk per Trade</b><span class="muted">Risk kecil, position size mengikuti jarak SL. Risk Guard menjadi hard gate.</span></div>
+<div class="card"><b>Survivorship Bias</b><span class="muted">Jangan hanya menguji pair yang berhasil. Scanner/backtest harus memakai data yang tersedia secara konsisten.</span></div>
+<div class="card"><b>Bad Practice</b><span class="muted">Hindari martingale, revenge trading, averaging tanpa batas, dan menaikkan risk setelah loss.</span></div>
+<div class="card"><b>Backtest Duration</b><span class="muted">Uji beberapa kondisi pasar dan cek consecutive loss, max drawdown, bukan win rate saja.</span></div>
+<div class="card"><b>Spot 60/40</b><span class="muted">Preset edukasi BTC 60% + altcoins 40%; ini bukan sinyal Futures.</span></div>
+<div class="card"><b>Auto Switch</b><span class="muted">Paper Engine boleh pindah pair hanya jika score baru melewati threshold dan posisi tidak melanggar guard.</span></div>
+<div class="card"><b>Profit ≠ Jaminan</b><span class="muted">Tidak ada sistem yang bisa menjamin profit atau menghilangkan loss. Tujuan engine adalah disiplin risiko.</span></div>
+</div></section>
+<script>
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=document.getElementById('installBtn');if(b)b.style.display='inline-block'});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const b=document.getElementById('installBtn');if(b)b.style.display='none'});
+document.addEventListener('click',async e=>{if(e.target?.id==='installBtn'&&deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;e.target.style.display='none'}});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
+const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
+const HUNTER={switchAdvantage:18,scanMs:1100,candidateCount:36,cooldownMs:350,klinesCacheMs:3000,maxConcurrent:8};
+const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
+async function getScanTicker(){
+ const now=Date.now();
+ if(Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length&&now-scanTickerCache.at<2000)return scanTickerCache.data;
+ try{
+  const r=await fetch(`/api/market/ticker?_=${now}`,{cache:'no-store'});
+  const rawText=await r.text();
+  let raw=null; try{raw=JSON.parse(rawText)}catch{}
+  const d=Array.isArray(raw)?raw:(Array.isArray(raw?.data)?raw.data:[]);
+  if(!r.ok||!d.length)throw new Error(raw?.error||`Ticker API ${r.status}`);
+  const clean=d.filter(x=>x&&typeof x==='object'&&typeof x.symbol==='string');
+  if(!clean.length)throw new Error('Ticker tidak berisi symbol valid');
+  scanTickerCache={at:now,data:clean}; return clean;
+ }catch(e){
+  if(Array.isArray(scanTickerCache.data)&&scanTickerCache.data.length){log(`Ticker gagal · cache dipakai (${e.message})`);return scanTickerCache.data;}
+  throw e;
+ }
+}
+async function getScanKlines(sym){
+ const now=Date.now(),cached=scanKlineCache.get(sym),live=liveKlinesBySymbol.get(sym);
+ // Historical candles are refreshed periodically; the current 15M candle always comes
+ // from the same Binance WebSocket feed used by the chart and PnL engine.
+ if(cached?.data?.length>=30){
+   if(now-cached.at<HUNTER.klinesCacheMs){
+     const merged=cached.data.slice(); if(live?.time){const i=merged.findIndex(x=>x.time===live.time);if(i>=0)merged[i]={...merged[i],...live};else if(live.time>merged.at(-1).time)merged.push(live);}
+     return merged.slice(-150);
+   }
+ }
+ try{
+  const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(sym)}&limit=150&_=${now}`,{cache:'no-store'});
+  const d=await r.json().catch(()=>null);
+  if(!r.ok||!Array.isArray(d))throw new Error(d?.error||`Kline API ${r.status}`);
+  const cs=d.map(k=>({time:Math.floor(Number(k[0])/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
+  if(cs.length<30)throw new Error(`Kline ${sym} kurang dari 30 candle`);
+  let out=cs.slice(-150); if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);}
+  out=out.slice(-150); scanKlineCache.set(sym,{at:now,data:out}); return out;
+ }catch(e){
+  if(cached?.data?.length>=30){
+    const out=cached.data.slice(); if(live?.time){const i=out.findIndex(x=>x.time===live.time);if(i>=0)out[i]={...out[i],...live};else if(live.time>out.at(-1).time)out.push(live);} return out.slice(-150);
+  }
+  throw e;
+ }
+}
+
+const IDR=16000; const fmtP=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:priceDecimals(n)}); const fmtIDR=n=>'Rp '+Math.round(n||0).toLocaleString('id-ID');
+function priceDecimals(n){n=Math.abs(Number(n)||0);if(n>=1000)return 2;if(n>=100)return 3;if(n>=1)return 4;if(n>=0.1)return 5;if(n>=0.01)return 6;if(n>=0.001)return 7;return 8}
+function fmtTradeP(n){const d=priceDecimals(n);return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function clearPositionVisuals(){
+  try{positionPriceLines.forEach(x=>series?.removePriceLine(x));}catch{}
+  positionPriceLines=[];
+}
+function renderTradeVisuals(){
+  if(!series)return;
+  try{
+    clearPositionVisuals();
+    if(paperPos&&hasValidPaperPosition()){
+      const p=paperPos;
+      const entryLine=series.createPriceLine({price:Number(p.entry),color:p.side==='BUY'?'#19d59a':'#ff5c72',lineWidth:2,lineStyle:0,axisLabelVisible:true,title:p.side==='BUY'?'AUTO BUY':'AUTO SELL'});
+      const slLine=series.createPriceLine({price:Number(p.sl),color:'#ff5c72',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
+      const tpLine=series.createPriceLine({price:Number(p.tp),color:'#4de1ff',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
+      positionPriceLines=[entryLine,slLine,tpLine];
+    }
+    const markers=[...tradeMarkers].filter(m=>m&&m.symbol===symbol&&Number.isFinite(Number(m.time))).sort((a,b)=>a.time-b.time).slice(-50);
+    series.setMarkers(markers);
+  }catch(e){log('Trade marker render error: '+e.message)}
+}
+function addTradeMarker(type,p){
+  if(!p)return;
+  const t=Math.floor(Number(p.entryCandleTime||p.opened||Date.now()/1000));
+  tradeMarkers.push({symbol:p.symbol||symbol,time:t,position:p.side==='BUY'?'belowBar':'aboveBar',color:p.side==='BUY'?'#19d59a':'#ff5c72',shape:p.side==='BUY'?'arrowUp':'arrowDown',text:`AUTO ${p.side} ${fmtTradeP(p.entry)}`});
+  if(tradeMarkers.length>50)tradeMarkers=tradeMarkers.slice(-50);
+  renderTradeVisuals();
+}
+function persist(){try{localStorage.setItem('ilhamPaperStateV62',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||0.2,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||3,autoRotate:$('#autoRotate').checked}))}catch{}}
+function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV62')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory.filter(t=>t&&Number.isFinite(Number(t.pnl))&&Number.isFinite(Number(t.time))&&typeof t.symbol==='string'&&['BUY','SELL'].includes(t.side)).slice(-100):[];
+// Reject legacy/corrupt paper ledgers: a single trade larger than 5% of the starting
+// paper equity is not credible for this risk-sized simulator. Rebuild net PnL from
+// validated closed trades rather than trusting a stale aggregate stored in localStorage.
+const ledgerLooksCorrupt=tradeHistory.some(t=>Math.abs(Number(t.pnl))>10000000*0.05);
+if(ledgerLooksCorrupt){tradeHistory=[];paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};paperPos=null;tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};}
+else {paperPnl=tradeHistory.reduce((sum,t)=>sum+Number(t.pnl),0);dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats={wins:tradeHistory.filter(t=>Number(t.pnl)>0).length,losses:tradeHistory.filter(t=>Number(t.pnl)<0).length};}tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||0.2;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||3;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
+function log(s){const e=document.createElement('div');e.className='log';e.textContent=new Date().toLocaleTimeString('id-ID')+' · '+s;$('#logs').prepend(e)}
+function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
+function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
+function sr(cs=candles){let h=[],l=[];for(let i=2;i<cs.length-2;i++){if(cs[i].high>cs[i-1].high&&cs[i].high>cs[i+1].high)h.push(cs[i].high);if(cs[i].low<cs[i-1].low&&cs[i].low<cs[i+1].low)l.push(cs[i].low)}let p=cs.at(-1)?.close||0;let resistance=h.filter(x=>x>p).sort((a,b)=>a-b)[0]||Math.max(...cs.slice(-40).map(x=>x.high));let support=l.filter(x=>x<p).sort((a,b)=>b-a)[0]||Math.min(...cs.slice(-40).map(x=>x.low));return{support,resistance}}
+function profitOpportunity(a, quote={}){
+ const dir=a.bias==='LONG'?1:a.bias==='SHORT'?-1:0;
+ if(!dir)return {edge:-Infinity,opportunity:-Infinity,signal:false,entryReady:false};
+ const cs=Array.isArray(a?._cs)&&a._cs.length>=6?a._cs:candles;
+ const c=a.c, p1=cs.at(-2), p3=cs.at(-4), p5=cs.at(-6);
+ if(!p1||!p3||!p5)return {edge:-Infinity,opportunity:-Infinity,signal:false,entryReady:false};
+ const A=Math.max(a.A,Math.abs(c.close)*0.0005,1e-12);
+ const slope3=dir*(c.close-p3.close)/A;
+ const slope5=dir*(c.close-p5.close)/A;
+ const bodyImpulse=dir*(c.close-c.open)/A;
+ const emaAlign=dir*(c.close-a.e)/A;
+ const emaSlope=dir*a.emaSlope;
+ const elapsed=Math.max(0.05,Math.min(1,(Date.now()/1000-c.time)/900));
+ const expectedVol=Math.max(0.05,elapsed);
+ const volRate=Number(a.vol||0)/expectedVol;
+ const volBoost=Math.min(2,Math.max(0,volRate-0.55));
+ const breakout=(dir===1&&a.breakoutLong)||(dir===-1&&a.breakoutShort);
+ const rejection=(dir===1&&a.rejectLong)||(dir===-1&&a.rejectShort);
+ const immediate=dir*(c.close-p1.close)/A;
+ const liveImpulse=dir*(c.close-c.open)/A;
+ const extension=Math.max(0,emaAlign);
+ const candleAligned=(dir===1?c.close>c.open:c.close<c.open);
+ const prevAligned=(dir===1?p1.close>p1.open:p1.close<p1.open);
+ const trendAligned=emaAlign>-0.25;
+ const momentumOk=dir*a.momentum>0.04 || liveImpulse>0.08 || immediate>0.06;
+ // Early-entry mode: a forming 15M candle can qualify before its close.
+ // Normalize volume by candle age so the engine can detect a fresh momentum ignition.
+ const earlyMomentum=liveImpulse>0.08 && immediate>0.03 && volRate>=0.45;
+ const continuation=immediate>0.05 && (candleAligned||prevAligned) && volRate>=0.4;
+ const bodyOk=Number(a.bodyPct||0)>=0.10 || earlyMomentum || breakout || rejection;
+ const volumeOk=Number(a.vol||0)>=0.30 || volRate>=0.45 || earlyMomentum;
+ const structureOk=breakout||rejection||earlyMomentum||continuation||(slope3>0.08&&bodyImpulse>0.03)||(trendAligned&&immediate>0.015);
+ const notChasing=extension<=2.0 && !(liveImpulse>1.4 && extension>1.15);
+ const rangeSetup=a.regime!=='EXTREME VOLATILITY' && (a.regime!=='RANGE'||breakout||rejection||earlyMomentum||continuation);
+ const regimeOk=rangeSetup;
+ const candleTiming=candleAligned||breakout||rejection||earlyMomentum||immediate>0.015;
+ // EARLY ENTRY GATE: prefer the first 45% of a 15M candle. After 65%, only a fresh breakout/impulse can qualify.
+ const earlyWindow=elapsed<=0.45,lateCandle=elapsed>0.65;
+ const freshBreakout=breakout&&(immediate>0.06||liveImpulse>0.10)&&elapsed<=0.70;
+ const timingGate=(earlyWindow&&(earlyMomentum||continuation||candleAligned||breakout||rejection))||freshBreakout||(!lateCandle&&candleTiming);
+ const twoCandleConfirm=candleAligned&&prevAligned;
+ const ignition=(elapsed<=0.35)&&((candleAligned&&immediate>0.018&&emaAlign>-0.35)||(prevAligned&&immediate>0.045&&volRate>=0.30)||(breakout&&immediate>0.035));
+ const reversalRisk=(dir===1&&c.close<a.e&&candleAligned)||(dir===-1&&c.close>a.e&&candleAligned);
+ const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&candleTiming&&timingGate&&!reversalRisk&&(twoCandleConfirm||earlyMomentum||ignition||breakout||rejection);
+ const edge=slope3*0.24+slope5*0.10+bodyImpulse*0.22+emaAlign*0.10+emaSlope*0.07+volBoost*0.28+immediate*0.24+(breakout?0.8:0)+(rejection?0.45:0)+(earlyMomentum?0.65:0)+(continuation?0.35:0)-(extension>1.15?(extension-1.15)*1.0:0);
+ const opportunity=edge*22+Math.min(12,Math.max(0,immediate*7))+Math.min(10,Math.max(0,liveImpulse*7))+Math.min(8,Math.max(0,slope3*3))+(breakout?9:0)+(rejection?4:0)+(earlyMomentum?8:0)+(continuation?4:0)+Math.min(6,Math.max(0,(volRate-0.7)*4));
+ const freshness=Math.max(0,1-elapsed);
+ const profitEdge=edge+(breakout?.25:0)+(rejection?.15:0)+(earlyMomentum?.25:0)+(ignition?.22:0)+(trendAligned?.08:0);
+ const opportunityBoost=(freshness*5)+(ignition?4:0);
+ const profitSignal=signal&&elapsed<=0.58&&profitEdge>0.06&&opportunity+opportunityBoost>1.0;
+ return {edge,profitEdge,opportunity:opportunity+opportunityBoost,signal:profitSignal,entryReady:profitSignal,slope3,slope5,immediate,liveImpulse,extension,trendAligned,momentumOk,bodyOk,volumeOk,volRate,structureOk,notChasing,regimeOk,earlyMomentum,continuation,ignition,elapsed,freshness};
+}
+
+function analyzeData(cs){
+ if(cs.length<30)return null;
+ const c=cs.at(-1),p=cs.at(-2),cl=cs.map(x=>x.close),es=ema(cl),e=es.at(-1),A=atr(cs),{support,resistance}=sr(cs);
+ const body=Math.abs(c.close-c.open),range=Math.max(c.high-c.low,Number.EPSILON),wU=c.high-Math.max(c.open,c.close),wL=Math.min(c.open,c.close)-c.low;
+ const bodyPct=body/range, bull=c.close>c.open,bear=c.close<c.open, trend=c.close>=e?1:-1;
+ const momentum=(c.close-p.close)/(A||Math.max(c.close*.001,1));
+ const avgVol=cs.slice(-21,-1).reduce((a,x)=>a+x.volume,0)/20,vol=avgVol?c.volume/avgVol:1;
+ const prev20=cs.slice(-21,-1), hi=Math.max(...prev20.map(x=>x.high)),lo=Math.min(...prev20.map(x=>x.low));
+ const breakoutLong=c.close>hi,breakoutShort=c.close<lo;
+ const nearRes=Math.abs(c.close-resistance)/(A||1)<1.25,nearSup=Math.abs(c.close-support)/(A||1)<1.25;
+ const rejectLong=wL>Math.max(body*1.35,A*.15)&&c.close>c.open, rejectShort=wU>Math.max(body*1.35,A*.15)&&c.close<c.open;
+ const emaSlope=es.length>5?(e-es.at(-6))/(A||1):0;
+ const regime=Math.abs(momentum)>2.8?'EXTREME VOLATILITY':Math.abs(momentum)>1.6?'HIGH VOLATILITY':Math.abs(momentum)<.35?'RANGE':'TREND';
+ let long=0,short=0;
+ long+=trend===1?20:0; short+=trend===-1?20:0;
+ long+=emaSlope>0?10:0; short+=emaSlope<0?10:0;
+ long+=momentum>0?Math.min(15,Math.max(0,momentum*7)):0; short+=momentum<0?Math.min(15,Math.max(0,-momentum*7)):0;
+ long+=vol>=1.15?10:vol>=.8?5:0; short+=vol>=1.15?10:vol>=.8?5:0;
+ long+=breakoutLong?20:rejectLong?10:nearSup?5:0; short+=breakoutShort?20:rejectShort?10:nearRes?5:0;
+ long+=bull&&bodyPct>=.45?10:0; short+=bear&&bodyPct>=.45?10:0;
+ if(regime==='RANGE'){long-=8;short-=8} if(regime==='EXTREME VOLATILITY'){long-=12;short-=12}
+ long=Math.max(0,Math.min(100,long)); short=Math.max(0,Math.min(100,short));
+ const score=Math.max(long,short), bias=long>=short+5?'LONG':short>=long+5?'SHORT':'NEUTRAL';
+ const reasons=[];
+ if(regime==='EXTREME VOLATILITY')reasons.push('volatilitas ekstrem');
+ if(Math.abs(momentum)<.20)reasons.push('momentum sangat lemah');
+ if(vol<.50)reasons.push('volume relatif rendah');
+ if(bias==='NEUTRAL')reasons.push('arah belum terbaca');
+ if(bias==='LONG'&&c.close<e)reasons.push('di bawah EMA20');
