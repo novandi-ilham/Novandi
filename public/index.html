@@ -13,7 +13,7 @@
 <section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.75" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="1" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Negative scans before rotate<input id="negativeScans" type="number" value="3" min="1" max="12" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
 </aside>
 <main>
-<section class="panel"><div class="tabs"><button class="btn active" data-tf="15m">15M ONLY</button><span class="pill">EMA20</span><span class="pill">S/R</span><span class="pill">FIB</span><span class="pill">WICK</span><span class="pill">BREAKOUT</span></div><div class="chartbox"><div id="chart" class="chart"></div><div class="overlay"><span class="tag" id="symbolTitle">BTCUSDT</span><span class="tag" id="lastPrice">—</span><span class="tag" id="ohlc">O — H — L — C —</span><span class="tag" id="candleDir">CANDLE —</span><span class="tag" id="candleTimer">CLOSE —</span><span class="tag" id="regime">REGIME —</span><span class="tag" id="noTrade">TRADE CHECK —</span></div><div class="tag" style="position:absolute;right:8px;bottom:8px;z-index:4;border-color:#19d59a;color:#b8ffe9">● AUTO ENTRY · ▲ BUY / ▼ SELL · garis Entry / SL / TP</div><div class="charttools"><button class="btn active" data-tool="none">Pointer</button><button class="btn" data-tool="trend">Trendline</button><button class="btn" data-tool="fib">Fib</button><button class="btn" id="srBtn">Auto S/R</button><button class="btn" id="clearDraw">Clear</button></div></div></section>
+<section class="panel"><div class="tabs"><button class="btn active" data-tf="15m">15M ONLY</button><span class="pill">EMA20</span><span class="pill">S/R</span><span class="pill">FIB</span><span class="pill">WICK</span><span class="pill">BREAKOUT</span></div><div class="chartbox"><div id="chart" class="chart"></div><div class="overlay"><span class="tag" id="symbolTitle">BTCUSDT</span><span class="tag" id="lastPrice">—</span><span class="tag" id="ohlc">O — H — L — C —</span><span class="tag" id="candleDir">CANDLE —</span><span class="tag" id="candleTimer">CLOSE —</span><span class="tag" id="clockWib">WIB --:--:--</span><span class="tag" id="regime">REGIME —</span><span class="tag" id="noTrade">TRADE CHECK —</span></div><div class="tag" style="position:absolute;right:8px;bottom:8px;z-index:4;border-color:#19d59a;color:#b8ffe9">● AUTO ENTRY · ▲ BUY / ▼ SELL · garis Entry / SL / TP</div><div class="charttools"><button class="btn active" data-tool="none">Pointer</button><button class="btn" data-tool="trend">Trendline</button><button class="btn" data-tool="fib">Fib</button><button class="btn" id="srBtn">Auto S/R</button><button class="btn" id="clearDraw">Clear</button></div></div></section>
 <section class="panel section"><div class="phead">MARKET INTELLIGENCE · 15M</div><div class="pbody"><div class="metricgrid"><div class="metric"><span class="muted">Confidence</span><b id="confidence">—</b></div><div class="metric"><span class="muted">Bias</span><b id="bias">—</b></div><div class="metric"><span class="muted">EMA20</span><b id="ema">—</b></div><div class="metric"><span class="muted">R:R</span><b id="rrOut">1 : 2</b></div></div><div style="margin-top:8px" class="bar"><i id="confidenceBar"></i></div><div id="reason" class="small muted" style="margin-top:7px">Menunggu data...</div></div></section>
 <section class="panel section"><div class="phead">PAPER ENGINE → SIGNAL → RISK → ENTRY → SL/TP → BREAK EVEN</div><div class="pbody"><div class="grid2"><div><div class="score" id="engineScore">—</div><div class="muted">Engine score</div></div><div><div id="engineStatus" class="goodbox">PAPER ENGINE AKTIF</div></div></div><div class="tradegrid" style="margin-top:9px"><button class="btn buy" id="buyBtn">▲ BUY / LONG</button><button class="btn sell" id="sellBtn">▼ SELL / SHORT</button></div><div class="grid3" style="margin-top:8px"><button class="btn" id="beBtn">SL PLUS / BE</button><button class="btn" id="partialBtn">TP PARTIAL</button><button class="btn" id="trailBtn">TRAILING</button></div></div></section>
 <section class="panel section"><div class="phead">ACTIVE POSITION ENGINE <button class="btn danger" id="closeBtn">TUTUP POSISI</button></div><div class="pbody" id="position"><div class="muted">Tidak ada posisi.</div></div></section>
@@ -122,16 +122,23 @@ function analyzeData(cs){
 }
 function analyze(){return analyzeData(candles)}
 function intervalSec(){return 900}
-function updateUI(){let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'TRADE CHECK ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;$('#candleTimer').textContent='CLOSE '+Math.max(0,Math.floor(rem))+'s';let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition())updatePosition(a.c.close);syncPaperStateUI(a)}
+function updateClockWib(){const d=new Date();const p=new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);const g=t=>p.find(x=>x.type===t)?.value||'';const el=$('#clockWib');if(el)el.textContent=`WIB ${g('hour')}:${g('minute')}:${g('second')}`;}
+function updateUI(){updateClockWib();let a=analyze();if(!a)return;$('#lastPrice').textContent=fmtP(a.c.close);$('#ohlc').textContent=`O ${fmtP(a.c.open)} · H ${fmtP(a.c.high)} · L ${fmtP(a.c.low)} · C ${fmtP(a.c.close)}`;$('#candleDir').textContent=a.bull?'CANDLE BULLISH':a.bear?'CANDLE BEARISH':'DOJI';$('#candleDir').className='tag '+(a.bull?'up':a.bear?'down':'yellow');$('#ema').textContent=fmtP(a.e);$('#confidence').textContent=a.score.toFixed(0)+'%';$('#confidenceBar').style.width=a.score+'%';$('#bias').textContent=a.bias;$('#bias').className=a.bias==='LONG'?'up':a.bias==='SHORT'?'down':'yellow';$('#regime').textContent='REGIME '+a.regime;$('#noTrade').textContent=a.allowed?'TRADE CHECK ✓':'NO TRADE';$('#noTrade').className='tag '+(a.allowed?'up':'down');$('#reason').textContent=`S/R ${fmtP(a.support)} / ${fmtP(a.resistance)} · ATR ${fmtP(a.A)} · Volume x${a.vol.toFixed(2)} · Wick U ${a.wU.toFixed(2)} / L ${a.wL.toFixed(2)}`;$('#engineScore').textContent=a.score.toFixed(0);$('#guardReasons').innerHTML=a.reasons.length?a.reasons.map(x=>`<div>⚠ ${x}</div>`).join(''):'<div class="up">✓ Guard conditions clear.</div>';let rem=a.c.time+intervalSec()-Date.now()/1000;const remain=Math.max(0,Math.floor(rem)); const mm=Math.floor(remain/60), ss=remain%60; $('#candleTimer').textContent=`CLOSE ${mm}:${String(ss).padStart(2,'0')} · WIB`;let slPct=Number($('#slPct').value)/100,rr=Number($('#rr').value);let sl=a.bias==='SHORT'?a.c.close*(1+slPct):a.c.close*(1-slPct),tp=a.bias==='SHORT'?a.c.close*(1-slPct*rr):a.c.close*(1+slPct*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp);if(hasValidPaperPosition())updatePosition(a.c.close);syncPaperStateUI(a)}
 function initChart(){
  const host=$('#chart');
  if(!host)return;
  try{
   if(!window.LightweightCharts)throw new Error('Library chart belum termuat');
-  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{color:'transparent'},textColor:'#8fa1b6'},grid:{vertLines:{color:'#132030'},horzLines:{color:'#132030'}},rightPriceScale:{borderColor:'#243448'},timeScale:{borderColor:'#243448',timeVisible:true,secondsVisible:false},crosshair:{mode:1}});
+  const jakartaFormatter = (time) => {
+    const d = new Date(Number(time) * 1000);
+    const parts = new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(d);
+    const get = t => parts.find(x=>x.type===t)?.value || '';
+    return `${get('day')}/${get('month')} ${get('hour')}:${get('minute')}`;
+  };
+  chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{color:'transparent'},textColor:'#8fa1b6'},grid:{vertLines:{color:'#132030'},horzLines:{color:'#132030'}},rightPriceScale:{borderColor:'#243448'},timeScale:{borderColor:'#243448',timeVisible:true,secondsVisible:false,tickMarkFormatter:jakartaFormatter},localization:{locale:'id-ID',timeFormatter:jakartaFormatter},crosshair:{mode:1}});
   series=chart.addCandlestickSeries({upColor:'#19d59a',downColor:'#ff5c72',borderUpColor:'#19d59a',borderDownColor:'#ff5c72',wickUpColor:'#19d59a',wickDownColor:'#ff5c72'});
   emaSeries=chart.addLineSeries({color:'#f4c44f',lineWidth:2});
-  $('#conn').textContent='CHART READY · 15M';
+  $('#conn').textContent='CHART READY · 15M · WIB';
  }catch(e){
   $('#conn').textContent='CHART LIB ERROR';
   log('Chart library error: '+e.message);
@@ -162,7 +169,7 @@ async function loadCandles(){
    const d=await r.json(); if(!Array.isArray(d)||!d.length)throw new Error('Klines kosong dari Binance');
    const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
    if(next.length<30)throw new Error('Candle 15M kurang dari 30 bar');
-   candles=next.slice(-150); redraw(); $('#conn').textContent='REST HISTORY LIVE · 15M'; return;
+   candles=next.slice(-150); redraw(); $('#conn').textContent='REST HISTORY LIVE · 15M · WIB'; return;
   }catch(e){last=e.message;await new Promise(r=>setTimeout(r,600*attempt));}
  }
  throw new Error(last);
@@ -182,7 +189,7 @@ function applyLiveKline(k){
   if(Number.isFinite(ev))emaSeries.update({time:c.time,value:ev});
   updateUI();
   renderTradeVisuals();
-  $('#conn').textContent='BINANCE WS LIVE';
+  $('#conn').textContent='BINANCE WS LIVE · WIB';
 }
 function scheduleWsReconnect(gen){
   clearTimeout(wsReconnectTimer);
@@ -201,7 +208,7 @@ function connectWS(){
   ws.onopen=()=>{
    if(gen!==wsGeneration)return;
    lastWsKlineAt=Date.now();
-   $('#conn').textContent='BINANCE WS LIVE · 15M';
+   $('#conn').textContent='BINANCE WS LIVE · 15M · WIB';
   };
   ws.onmessage=(ev)=>{
    if(gen!==wsGeneration)return;
@@ -223,7 +230,10 @@ function connectWS(){
 }
 let pollBusy=false;
 async function pollLiveCandle(){
- if(pollBusy||!candles.length)return; pollBusy=true;
+ if(pollBusy||!candles.length)return;
+ // WebSocket is authoritative while connected; REST is fallback only.
+ if(ws&&ws.readyState===1)return;
+ pollBusy=true;
  try{
   const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&live=1&_=${Date.now()}`,{cache:'no-store'});
   if(!r.ok)throw new Error('REST '+r.status);
