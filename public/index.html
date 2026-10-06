@@ -73,11 +73,11 @@ async function diagnoseMarketAccess(){
     marketDiagnostic.proxyStatus=r.status;
     const d=await r.clone().json().catch(()=>({}));
     if(r.ok&&d.ok){marketDiagnostic.proxy='OK';log('Market diagnostic · SERVER proxy OK');}
-    else{marketDiagnostic.proxy='HTTP '+r.status+(d?.error?' · '+d.error:'');log('Market diagnostic · SERVER proxy '+marketDiagnostic.proxy);}
+    else{marketDiagnostic.proxy=(r.ok&&d?.ok)?'OK':(d?.binanceHttp?('BINANCE HTTP '+d.binanceHttp):(r.status===200?'APP HTTP 200 · '+(d?.error||'BINANCE ERROR'):'HTTP '+r.status));log('Market diagnostic · SERVER proxy '+marketDiagnostic.proxy);}
   }catch(e){marketDiagnostic.proxy='ERROR';log('Market diagnostic · SERVER proxy error: '+String(e?.message||e));}
   if(marketDiagnostic.direct==='OK') marketSource='DIRECT';
   else if(marketDiagnostic.proxy==='OK') marketSource='SERVER-PROXY';
-  else marketSource='UNAVAILABLE';
+  else { marketSource='UNAVAILABLE'; log(`Market unavailable · DIRECT=${marketDiagnostic.direct} · PROXY=${marketDiagnostic.proxy}`); }
   const detail=`DIRECT=${marketDiagnostic.direct} · PROXY=${marketDiagnostic.proxy}`;
   $('#conn').textContent='MARKET DIAGNOSTIC · '+detail;
   return marketDiagnostic;
@@ -98,7 +98,7 @@ async function fetchBinancePublic(path, params={}){
    if(r.ok){marketSource='DIRECT';return r;}
    if(r.status!==451&&r.status!==403) throw new Error(`Binance ${r.status}`);
  }catch(e){
-   marketDiagnostic.direct='ERROR';
+   if(marketDiagnostic.direct!=='HTTP 451' && marketDiagnostic.direct!=='HTTP 403') marketDiagnostic.direct='ERROR';
    marketDiagnostic.error=String(e?.name||e?.message||e);
    // Browser direct access failed/restricted; fall through to the server proxy.
  }
