@@ -69,7 +69,8 @@ export default async function handler(req,res){
       }catch(e){
         const msg=String(e?.message||e);
         const m=msg.match(/Binance HTTP (\d+)/);
-        return res.status(200).json({ok:false,source:'VERCEL_SERVER',marketBase:MARKET_BASE,binanceHttp:m?Number(m[1]):null,error:msg,latencyMs:Date.now()-started});
+        const binanceHttp=m?Number(m[1]):null;
+        return res.status(binanceHttp||502).json({ok:false,source:'VERCEL_SERVER',marketBase:MARKET_BASE,binanceHttp,error:msg,latencyMs:Date.now()-started});
       }
     }
     if(path==='/api/market/realtime'&&req.method==='GET'){
