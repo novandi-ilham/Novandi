@@ -23,7 +23,7 @@ async function binance(pth,{method='GET',params={},signed=false,base=BASE}={}){
   const qs=new URLSearchParams(p).toString(); const url=base+pth+(qs?'?'+qs:'');
   const r=await fetch(url,{method,headers:{'X-MBX-APIKEY':KEY}}); const text=await r.text(); let data; try{data=JSON.parse(text)}catch{data={raw:text}}; if(!r.ok)throw Error(data?.msg||`Binance HTTP ${r.status}`); return data;
 }
-async function marketBinance(pth,options={}){try{return await binance(pth,{...options,base:MARKET_BASE})}catch(e){if(BASE===MARKET_BASE)throw e;return await binance(pth,{...options,base:BASE})}}
+async function marketBinance(pth,options={}){return await binance(pth,{...options,base:MARKET_BASE})}
 function send(res,status,type,body){res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(body)}
 function json(res,status,obj){send(res,status,'application/json',JSON.stringify(obj))}
 async function body(req){return await new Promise((resolve,reject)=>{let b='';req.on('data',d=>{b+=d;if(b.length>100000)reject(Error('body too large'))});req.on('end',()=>{try{resolve(b?JSON.parse(b):{})}catch(e){reject(e)}});req.on('error',reject)})}
@@ -34,6 +34,8 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'GET,POST,OPTIONS'});return res.end()}
   if(u.pathname==='/api/health')return json(res,200,{ok:true,mode:ALLOW_LIVE?'live-enabled':'paper-only',maxNotionalUSDT:MAX_NOTIONAL_USDT,tradingEndpointLocked:!TRADING_TOKEN,time:Date.now()});
   if(u.pathname==='/api/market/ticker'&&req.method==='GET')return json(res,200,await marketBinance('/fapi/v1/ticker/24hr'));
+  if(u.pathname==='/api/market/time'&&req.method==='GET')return json(res,200,await marketBinance('/fapi/v1/time'));
+  if(u.pathname==='/api/market/realtime'&&req.method==='GET'){const sym=u.searchParams.get('symbol')||'';if(!/^[A-Z0-9]{5,20}$/.test(sym))return json(res,400,{error:'symbol invalid'});const started=Date.now();const [kl,clock]=await Promise.all([marketBinance('/fapi/v1/klines',{params:{symbol:sym.toUpperCase(),interval:'15m',limit:2}}),marketBinance('/fapi/v1/time')]);const kline=Array.isArray(kl)&&kl.length?kl[kl.length-1]:null;if(!kline)throw Error('Binance realtime kline kosong');return json(res,200,{ok:true,source:'BINANCE_FUTURES_PRODUCTION',symbol:sym.toUpperCase(),interval:'15m',serverTime:Number(clock.serverTime)||Date.now(),receivedAt:Date.now(),latencyMs:Date.now()-started,kline});}
   if(u.pathname==='/api/market/klines'&&req.method==='GET'){const s=u.searchParams.get('symbol')||'';if(!/^[A-Z0-9]{5,20}$/.test(s))return json(res,400,{error:'symbol invalid'});return json(res,200,await marketBinance('/fapi/v1/klines',{params:{symbol:s.toUpperCase(),interval:'15m',limit:150}}));}
   if(u.pathname==='/api/account'&&req.method==='GET'){
    if(!KEY||!SECRET)return json(res,200,{connected:false,reason:'API key not configured'});
