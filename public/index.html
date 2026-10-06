@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V68: BINANCE USD-M MARKET SYNC + VERCEL API ROUTING + HARD RISK LOCK -->
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V72: DIRECT BINANCE PROD 15M KLINE + STABLE MARKET SYNC + HARD RISK LOCK -->
 <title>ilham novandi — Futures Command Center</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -263,38 +263,57 @@ function redraw(){
 }
 async function fetchProductionKlines(symbolName){
   const q=`symbol=${encodeURIComponent(symbolName)}&interval=15m&limit=150`;
-  let lastErr='unknown';
-  // Primary: same-origin Vercel proxy, which is the controlled production source.
+  let directErr='', proxyErr='';
+  // Chart truth: read Binance USDⓈ-M Production directly from the browser first.
+  // This removes Vercel/serverless latency and prevents a broken /api route from
+  // making the visible chart disappear.
+  try{
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?${q}&_=${Date.now()}`,{cache:'no-store',mode:'cors'});
+    const text=await r.text();
+    if(!r.ok)throw new Error(`Binance HTTP ${r.status} ${text.slice(0,100)}`);
+    const d=JSON.parse(text); if(!Array.isArray(d)||!d.length)throw new Error('Binance klines kosong');
+    return d;
+  }catch(e){directErr=e.message||String(e)}
+  // Same production source through our server proxy as a transport fallback.
   try{
     const r=await fetch(`/api/market/klines?${q}&_=${Date.now()}`,{cache:'no-store',headers:{'Accept':'application/json'}});
     const text=await r.text();
-    if(!r.ok)throw new Error(`Proxy HTTP ${r.status} ${text.slice(0,120)}`);
+    if(!r.ok)throw new Error(`Proxy HTTP ${r.status} ${text.slice(0,100)}`);
     const d=JSON.parse(text); if(!Array.isArray(d)||!d.length)throw new Error('Proxy klines kosong');
     return d;
-  }catch(e){lastErr=e.message||String(e)}
-  // Fallback: Binance production REST directly from the browser. This is only a
-  // transport fallback; the source is still the same USDⓈ-M production API.
+  }catch(e){proxyErr=e.message||String(e)}
+  throw new Error(`PROD KLINE GAGAL · direct: ${directErr} · proxy: ${proxyErr}`);
+}
+
+async function fetchProductionPrice(symbolName){
+  const q=`symbol=${encodeURIComponent(symbolName)}`;
   try{
-    const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?${q}`,{cache:'no-store',mode:'cors'});
-    if(!r.ok)throw new Error(`Binance direct HTTP ${r.status}`);
-    const d=await r.json(); if(!Array.isArray(d)||!d.length)throw new Error('Binance direct klines kosong');
-    return d;
-  }catch(e){throw new Error(`Production klines gagal · proxy: ${lastErr} · direct: ${e.message||e}`)}
+    const r=await fetch(`https://fapi.binance.com/fapi/v2/ticker/price?${q}&_=${Date.now()}`,{cache:'no-store',mode:'cors'});
+    const text=await r.text(); if(!r.ok)throw new Error(`Binance HTTP ${r.status}`);
+    const d=JSON.parse(text); const price=Number(d?.price); if(!Number.isFinite(price)||price<=0)throw new Error('price invalid');
+    return price;
+  }catch{}
+  try{
+    const r=await fetch(`/api/market/price?${q}&_=${Date.now()}`,{cache:'no-store'}); const d=await r.json();
+    const price=Number(d?.price); if(!Number.isFinite(price)||price<=0)throw new Error('proxy price invalid'); return price;
+  }catch(e){return NaN}
 }
 
 async function loadCandles(){
- let last='unknown';
- for(let attempt=1;attempt<=3;attempt++){
-  try{
-   const d=await fetchProductionKlines(symbol)
-   if(!Array.isArray(d)||!d.length)throw new Error('Klines kosong dari Binance');
-   const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
-   if(next.length<30)throw new Error('Candle 15M kurang dari 30 bar');
-   candles=next.slice(-150); redraw(); $('#conn').textContent='REST HISTORY LIVE · 15M · BINANCE PROD'; return;
-  }catch(e){last=e.message;await new Promise(r=>setTimeout(r,600*attempt));}
- }
- throw new Error(last);
+  let last='unknown';
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const d=await fetchProductionKlines(symbol);
+      const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
+      if(next.length<30)throw new Error('Candle 15M kurang dari 30 bar');
+      candles=next.slice(-150); redraw();
+      $('#conn').textContent='BINANCE PROD · 15M HISTORY SYNCED';
+      return;
+    }catch(e){last=e.message;await new Promise(r=>setTimeout(r,500*attempt));}
+  }
+  throw new Error(last);
 }
+
 let wsReconnectTimer=null, wsWatchdogTimer=null, wsRefreshTimer=null, wsGeneration=0, lastWsKlineAt=0, lastWsTradeAt=0, marketWsSymbols=new Set(), marketWsKey='', marketWsEpoch=0;
 function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
@@ -371,25 +390,18 @@ async function resyncVisibleMarket(gen){
   try{
     const d=await fetchProductionKlines(symbol);
     if(gen!==wsGeneration||!Array.isArray(d)||!d.length)return;
-    // Full-history resync is used whenever a candle gap is detected. This prevents
-    // recursive single-candle updates and guarantees the chart starts from Binance's
-    // exact 15M OHLCV sequence.
     const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]}))
       .filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
     if(next.length<30)throw new Error('REST history kurang dari 30 candle');
-    candles=next.slice(-150);
+    candles=next.slice(-150); redraw();
     const x=d[d.length-1];
-    const c={symbol, time:Math.floor(Number(x[0])/1000), open:+x[1], high:+x[2], low:+x[3], close:+x[4], volume:+x[5], closed:false, sourceTs:Date.now()};
-    liveKlinesBySymbol.set(symbol,c);
-    latestPriceBySymbol[symbol]=c.close;
-    redraw();
+    const c={symbol,time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],closed:false,sourceTs:Date.now()};
+    liveKlinesBySymbol.set(symbol,c); latestPriceBySymbol[symbol]=c.close;
     if(hasValidPaperPosition()&&paperPos.symbol===symbol)enforceLiveRisk(c.close,'RESYNC');
-    lastWsKlineAt=Date.now();
-    $('#conn').textContent='BINANCE WS LIVE · 15M · SYNCED';
-  }catch(e){
-    if(gen===wsGeneration)$('#conn').textContent='BINANCE WS LIVE · REST SYNC RETRY';
-  }
+    lastWsKlineAt=Date.now(); $('#conn').textContent='BINANCE PROD · 15M · SYNCED';
+  }catch(e){if(gen===wsGeneration)$('#conn').textContent='KLINE SYNC ERROR · '+String(e.message||e).slice(0,90)}
 }
+
 function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([...marketWsSymbols])},1200)}
 function connectMarketWS(symbols=[]){
   // The visible chart/PnL feed is intentionally one-symbol and persistent.
@@ -400,13 +412,13 @@ function connectMarketWS(symbols=[]){
   marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; marketWsEpoch=Date.now(); clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
   // IMPORTANT: Binance retired the legacy /stream endpoint on 2026-04-23.
   // Use the current USDⓈ-M MARKET stream endpoint so kline + aggTrade stay live.
-  const streams=clean.flatMap(s=>[`${s.toLowerCase()}@kline_15m`,`${s.toLowerCase()}@aggTrade`,`${s.toLowerCase()}@ticker`]).join('/');
+  const streams=clean.map(s=>`${s.toLowerCase()}@kline_15m`).join('/');
   const url='wss://fstream.binance.com/market/stream?streams='+streams;
   $('#conn').textContent='BINANCE WS CONNECTING · USDⓈ-M · 15M'; lastWsKlineAt=0; lastWsTradeAt=0;
   try{
     ws=new WebSocket(url);
     ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=0;lastWsTradeAt=Date.now();$('#conn').textContent='BINANCE WS LIVE · USDⓈ-M · SYNCING';resyncVisibleMarket(gen)};
-    ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='aggTrade')applyLiveTrade(payload);else if(payload.e==='24hrTicker')applyLiveTicker(payload)}catch{}};
+    ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='24hrTicker')applyLiveTicker(payload)}catch{}};
     ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · REST FALLBACK'};
     ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · REST SYNC';scheduleWsReconnect(gen)}};
     wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const activeLive=liveKlinesBySymbol.get(symbol); const ageK=activeLive?.sourceTs?Date.now()-Number(activeLive.sourceTs):Infinity; const ageT=lastWsTradeAt?Date.now()-lastWsTradeAt:Infinity; if(ws?.readyState===1&&ageK>10000&&ageT>10000){$('#conn').textContent='WS STALE · RESYNCING';resyncVisibleMarket(gen);try{ws.close()}catch{}}},3000);
@@ -417,11 +429,10 @@ let pollBusy=false;
 async function pollLiveCandle(){
  if(pollBusy||!candles.length)return; pollBusy=true;
  try{
-  const live=liveKlinesBySymbol.get(symbol); if(live&&Date.now()-Number(live.sourceTs||0)<5000){if(ws?.readyState===1)return;}
-  const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&live=1&_=${Date.now()}`,{cache:'no-store'}); if(!r.ok)throw new Error('REST '+r.status);
-  const d=await r.json(); if(!Array.isArray(d)||!d.length)throw new Error('empty'); const x=d[d.length-1]; applyLiveKline({s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false});
-  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST LIVE · USDⓈ-M PROD · WS RETRY';
- }catch(e){if(!ws||ws.readyState!==1)$('#conn').textContent='MARKET DATA ERROR · '+e.message}
+  const d=await fetchProductionKlines(symbol); if(!Array.isArray(d)||!d.length)throw new Error('empty');
+  const x=d[d.length-1]; applyLiveKline({s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false});
+  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE PROD · REST 15M · WS RETRY';
+ }catch(e){if(!ws||ws.readyState!==1)$('#conn').textContent='KLINE ERROR · '+String(e.message||e).slice(0,90)}
  finally{pollBusy=false}
 }
 
@@ -677,5 +688,5 @@ function setMode(){mode=$('#orderMode').value;$('#mode').textContent=mode.toUppe
 function runBacktest(){let n=Math.min(Number($('#btLimit').value),candles.length-25),risk=Number($('#btRisk').value),rr=Number($('#btRR').value),start=candles.length-n,equity=0,peak=0,maxDD=0,wins=0,losses=0,net=0,worst=0,streak=0,best=-Infinity;for(let i=start+20;i<candles.length-1;i++){let sub=candles.slice(0,i+1),old=candles; candles=sub;let a=analyze();candles=old;if(!a)continue;let signal=$('#btStrategy').value==='reversal'?(a.wick===1?'LONG':a.wick===-1?'SHORT':null):a.bias==='LONG'?'LONG':a.bias==='SHORT'?'SHORT':null;if(!signal||!a.allowed)continue;let entry=candles[i].close,slPct=Number($('#slPct').value)/100,sl=signal==='LONG'?entry*(1-slPct):entry*(1+slPct),tp=signal==='LONG'?entry*(1+slPct*rr):entry*(1-slPct*rr),out=null;for(let j=i+1;j<candles.length;j++){let c=candles[j];if(signal==='LONG'){if(c.low<=sl){out=-1;break}if(c.high>=tp){out=rr;break}}else{if(c.high>=sl){out=-1;break}if(c.low<=tp){out=rr;break}}}if(out===null)continue;net+=out;equity+=out*risk;best=Math.max(best,out);if(out>0){wins++;streak=0}else{losses++;streak++;worst=Math.max(worst,streak)}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}let trades=wins+losses,pf=losses?wins*rr/losses:Infinity;$('#btTrades').textContent=trades;$('#btWin').textContent=trades?(wins/trades*100).toFixed(1)+'%':'—';$('#btPF').textContent=Number.isFinite(pf)?pf.toFixed(2):'∞';$('#btDD').textContent=maxDD.toFixed(2)+'%';$('#btNet').textContent=net.toFixed(2)+'R';$('#btStreak').textContent=worst;$('#btBest').textContent=best===-Infinity?'—':best.toFixed(2)+'R';$('#btSummary').textContent=trades?`Hasil simulasi 15M: ${trades} trade, ${wins} win, ${losses} loss. Consecutive loss terburuk ${worst}. Gunakan hasil ini untuk mengukur robustness, bukan jaminan hasil masa depan.`:'Tidak ada setup valid pada periode tersebut.';log('Backtest selesai: '+trades+' trades')}
 $$('[data-tool]').forEach(b=>b.onclick=()=>{$$('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool});$('#srBtn').onclick=()=>{srActive=!srActive;$('#srBtn').classList.toggle('active',srActive);if(srActive)drawSR();else{drawings.forEach(x=>x.remove?.());drawings=[]}};$('#clearDraw').onclick=()=>{drawings.forEach(x=>x.remove?.());drawings=[]};$('#buyBtn').onclick=()=>submitOrder('BUY');$('#sellBtn').onclick=()=>submitOrder('SELL');$('#closeBtn').onclick=closePosition;$('#beBtn').onclick=()=>{if(paperPos){paperPos.sl=paperPos.entry*(paperPos.side==='BUY'?1.0002:.9998);paperPos.be=true;renderPosition();log('Manual SL Plus / BE')}};$('#partialBtn').onclick=()=>{if(paperPos&&!paperPos.partial){paperPos.qty*=.5;paperPos.partial=true;log('Partial TP: 50% size dikunci')}};$('#trailBtn').onclick=()=>{if(paperPos){paperPos.trail=!paperPos.trail;log('Trailing '+(paperPos.trail?'ON':'OFF'))}};$('#orderMode').onchange=setMode;['margin','lev','risk','slPct','rr','maxFloatLoss','profitGiveback','negativeScans'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener('input',()=>{renderPaperOrderPreview();persist();});el.addEventListener('change',()=>{renderPaperOrderPreview();persist();});}});$('#accountBtn').onclick=account;$('#refreshScan').onclick=scan;$('#autoToggle').onclick=()=>{auto=!auto;$('#autoToggle').textContent=auto?'AUTO ON':'AUTO OFF'};$('#killBtn').onclick=()=>{killed=!killed;$('#killBtn').textContent='KILL SWITCH: '+(killed?'ON':'OFF');$('#killBtn').classList.toggle('active',killed);if(killed)log('KILL SWITCH AKTIF — auto entry diblokir')};$('#runBacktest').onclick=runBacktest;
 $('#resetPaperBtn')?.addEventListener('click',()=>{if(!confirm('Reset akun paper ke Rp 10.000.000? Posisi dan riwayat paper akan dihapus.'))return;paperPos=null;paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};tradeHistory=[];tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};accountEquity=10000000;killed=false;auto=true;localStorage.removeItem('ilhamPaperStateV58');localStorage.removeItem('ilhamPaperStateV62');clearPositionVisuals();persist();renderPosition();updatePaperAccount(0);$('#dailyLossOut').textContent=fmtIDR(0);$('#lossStreak').textContent='0';log('PAPER ACCOUNT RESET · Rp 10.000.000 · ledger bersih');});
-(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';try{await loadCandles();pollLiveSnapshot();connectWS();renderPosition();await scan();log('System ready · 15M only · BINANCE WS shared feed · PAPER default')}catch(e){log('Init error: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveSnapshot,5000);setInterval(scan,HUNTER.scanMs)})();
+(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';try{await loadCandles();pollLiveSnapshot();connectWS();renderPosition();await scan();log('System ready · 15M only · BINANCE WS shared feed · PAPER default')}catch(e){log('Init error: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,5000);setInterval(pollLiveSnapshot,2000);setInterval(scan,HUNTER.scanMs)})();
 </script></body></html>
