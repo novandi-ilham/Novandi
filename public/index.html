@@ -48,19 +48,30 @@ document.addEventListener('click',async e=>{if(e.target?.id==='installBtn'&&defe
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolGeneration=0,binanceClockOffset=0;
-// V5 market architecture: REST market data is authoritative and always comes
-// from the Vercel server proxy -> Binance USDⓈ-M Futures production. The browser
-// WebSocket is an accelerator, not the source of truth. This prevents a stuck
-// WebSocket or restricted browser connection from freezing the chart.
-let marketSource='SERVER-PROXY';
+// V6 market architecture: the phone/browser talks directly to Binance Futures
+// Production first. Vercel is only a fallback. This matters because the Vercel
+// server location can receive Binance HTTP 451 while the user's browser can still
+// reach Binance. WebSocket is direct as well; REST reconciliation remains active.
+const BINANCE_PUBLIC='https://fapi.binance.com';
+let marketSource='DIRECT';
 function marketProxyPath(path){
  if(path==='/fapi/v1/time') return '/api/market/time';
  if(path==='/fapi/v1/klines') return '/api/market/klines';
  if(path==='/fapi/v1/ticker/24hr') return '/api/market/ticker';
- if(path==='/fapi/v1/realtime') return '/api/market/realtime';
  throw new Error('Unsupported market proxy path: '+path);
 }
 async function fetchBinancePublic(path, params={}){
+ // Direct browser request is authoritative. Do not route successful market traffic
+ // through Vercel, because Binance may restrict the Vercel server IP (HTTP 451).
+ const qs=new URLSearchParams(params).toString();
+ const direct=`${BINANCE_PUBLIC}${path}${qs?'?'+qs:''}`;
+ try{
+   const r=await fetch(direct,{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+   if(r.ok){marketSource='DIRECT';return r;}
+   if(r.status!==451&&r.status!==403) throw new Error(`Binance ${r.status}`);
+ }catch(e){
+   // Browser direct access failed/restricted; fall through to the server proxy.
+ }
  const proxyPath=marketProxyPath(path);
  const proxyQs=new URLSearchParams({...params,_:String(Date.now())}).toString();
  const proxy=`${proxyPath}${proxyQs?'?'+proxyQs:''}`;
@@ -264,16 +275,18 @@ async function reconcileRealtime(){
  if(restBusy||!candles.length)return;
  const targetSymbol=symbol,gen=symbolGeneration,seq=++marketSeq; restBusy=true;
  try{
-  const r=await fetchBinancePublic('/fapi/v1/realtime',{symbol:targetSymbol});
-  if(!r.ok)throw new Error('Realtime API '+r.status);
+  // Use the real Binance Kline endpoint for reconciliation. V5's synthetic
+  // /api/market/realtime endpoint forced this path through Vercel and therefore
+  // failed with Binance HTTP 451 from the restricted server location.
+  const r=await fetchBinancePublic('/fapi/v1/klines',{symbol:targetSymbol,interval:'15m',limit:'2'});
+  if(!r.ok)throw new Error('Realtime Klines API '+r.status);
   const d=await r.json();
   if(seq!==marketSeq||gen!==symbolGeneration||targetSymbol!==symbol)return;
-  if(Number.isFinite(Number(d.serverTime)))binanceClockOffset=Number(d.serverTime)-Date.now();
-  const k=d?.kline;
+  const k=Array.isArray(d)&&d.length?d[d.length-1]:null;
   if(!k)throw new Error('Realtime kline kosong');
   const changed=applyLiveKline({t:k[0],o:k[1],h:k[2],l:k[3],c:k[4],v:k[5]},targetSymbol,gen,'rest');
   lastRestSyncAt=Date.now();
-  if(changed||!ws||ws.readyState!==1)setRealtimeStatus(`SYNC ${new Date(lastRestSyncAt).toLocaleTimeString('id-ID',{hour12:false})}`);
+  if(changed||!ws||ws.readyState!==1)setRealtimeStatus(`${marketSource} · SYNC ${new Date(lastRestSyncAt).toLocaleTimeString('id-ID',{hour12:false})}`);
   else setRealtimeStatus(lastWsSource);
  }catch(e){
   if(gen===symbolGeneration&&targetSymbol===symbol){$('#conn').textContent=`REST SYNC ERROR · ${e.message}`;}
