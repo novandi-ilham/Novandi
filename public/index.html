@@ -50,7 +50,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
-const HUNTER={switchAdvantage:14,scanMs:1500,candidateCount:48,cooldownMs:900,klinesCacheMs:60000,maxConcurrent:8};
+const HUNTER={switchAdvantage:18,scanMs:1500,candidateCount:24,cooldownMs:900,klinesCacheMs:8000,maxConcurrent:6};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
 async function getScanTicker(){
  const now=Date.now();
@@ -171,8 +171,13 @@ function profitOpportunity(a, quote={}){
  const rangeSetup=a.regime!=='EXTREME VOLATILITY' && (a.regime!=='RANGE'||breakout||rejection||earlyMomentum||continuation);
  const regimeOk=rangeSetup;
  const candleTiming=candleAligned||breakout||rejection||earlyMomentum||immediate>0.015;
- // Do not require confidence. Require actual live direction/momentum and a non-chasing entry.
- const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&candleTiming;
+ // EARLY ENTRY GATE: prefer the first 45% of a 15M candle. After 65%, only a fresh breakout/impulse can qualify.
+ const earlyWindow=elapsed<=0.45,lateCandle=elapsed>0.65;
+ const freshBreakout=breakout&&(immediate>0.06||liveImpulse>0.10)&&elapsed<=0.70;
+ const timingGate=(earlyWindow&&(earlyMomentum||continuation||candleAligned||breakout||rejection))||freshBreakout||(!lateCandle&&candleTiming);
+ const twoCandleConfirm=candleAligned&&prevAligned;
+ const reversalRisk=(dir===1&&c.close<a.e&&candleAligned)||(dir===-1&&c.close>a.e&&candleAligned);
+ const signal=trendAligned&&momentumOk&&bodyOk&&volumeOk&&structureOk&&notChasing&&regimeOk&&candleTiming&&timingGate&&!reversalRisk&&(twoCandleConfirm||earlyMomentum||breakout||rejection);
  const edge=slope3*0.24+slope5*0.10+bodyImpulse*0.22+emaAlign*0.10+emaSlope*0.07+volBoost*0.28+immediate*0.24+(breakout?0.8:0)+(rejection?0.45:0)+(earlyMomentum?0.65:0)+(continuation?0.35:0)-(extension>1.15?(extension-1.15)*1.0:0);
  const opportunity=edge*22+Math.min(12,Math.max(0,immediate*7))+Math.min(10,Math.max(0,liveImpulse*7))+Math.min(8,Math.max(0,slope3*3))+(breakout?9:0)+(rejection?4:0)+(earlyMomentum?8:0)+(continuation?4:0)+Math.min(6,Math.max(0,(volRate-0.7)*4));
  const profitEdge=edge+(breakout?.25:0)+(rejection?.15:0)+(earlyMomentum?.25:0)+(trendAligned?.08:0);
@@ -277,6 +282,7 @@ function applyLiveKline(k){
   const i=candles.findIndex(x=>x.time===c.time); if(i>=0)candles[i]={time:c.time,open:c.open,high:c.high,low:c.low,close:c.close,volume:c.volume}; else candles.push({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close,volume:c.volume});
   if(candles.length>150)candles=candles.slice(-150);
   if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
+  if(hasValidPaperPosition()&&paperPos.symbol===sym&&enforceLiveRisk(c.close,'KLINE'))return;
   const ev=ema(candles.map(x=>x.close)).at(-1); if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
   updateUI(); renderTradeVisuals(); $('#conn').textContent='BINANCE WS LIVE · 15M · '+sym;
 }
@@ -353,7 +359,7 @@ function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=pap
 function lossExitReason(current,best){
  if(!hasValidPaperPosition())return null;
  const p=paperPos,price=current?.c?.close||p.entry,pnl=currentPaperPnl(price);
- const maxLoss=Math.max(0,Number($('#maxFloatLoss').value)||0.5)/100*Math.max(1,Number(p.margin)||0);
+ const maxLoss=Math.max(1,Number(accountEquity))*Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
  const sameBias=current?.bias===(p.side==='BUY'?'LONG':'SHORT');
  const invalid=!current?.allowed||!sameBias;
  const givebackPct=Math.min(100,Math.max(1,Number($('#profitGiveback').value)||10))/100;
@@ -403,7 +409,7 @@ async function scan(){
     try{
       const cs=await getScanKlines(x.symbol); if(!Array.isArray(cs)||cs.length<30)throw new Error('Kline kurang');
       const a=analyzeData(cs); if(!a||a.bias==='NEUTRAL')continue;
-      a._cs=cs; scanStats.ok++;
+      a._cs=cs; a._symbol=x.symbol; scanStats.ok++;
       const po=profitOpportunity(a,{change:Number(x.priceChangePercent)||0,volume:Number(x.quoteVolume)||0});
       ranked.push({symbol:x.symbol,score:Number(a.score)||0,bias:a.bias,analysis:a,change:Number(x.priceChangePercent)||0,volume:Number(x.quoteVolume)||0,opportunity:Number(po.opportunity),profitSignal:!!po.signal,entryReady:!!po.entryReady,profitEdge:Number(po.edge),slope3:Number(po.slope3),immediate:Number(po.immediate),extension:Number(po.extension||0)});
     }catch(err){scanStats.fail++;}
@@ -427,8 +433,23 @@ async function scan(){
   const currentOpp=Number(currentPO.opportunity); const bestOpp=Number(best?.opportunity??-Infinity);
   const repeatedLoss=active&&Number(symbolLossStreaks[paperPos.symbol]||0)>=streakLimit;
   const currentLivePrice=active?latestPriceBySymbol[activeSymbol]:null;
-  const currentPnl=active&&current?currentPaperPnl(Number.isFinite(Number(currentLivePrice))?Number(currentLivePrice):current.c.close):0;
-  // Pair-loss movement guard is enforced in updatePosition() on live prices.
+  const currentMark=active?(Number.isFinite(Number(currentLivePrice))?Number(currentLivePrice):(current?.c?.close||paperPos.entry)):null;
+  const currentPnl=active&&currentMark!=null?currentPaperPnl(Number(currentMark)):0;
+  // Scanner is a second safety net while WebSocket is connecting/retrying.
+  if(active&&currentMark!=null&&enforceLiveRisk(Number(currentMark),'SCANNER')){
+    const closedSymbol=activeSymbol;
+    const next=eligible.find(r=>r.symbol!==closedSymbol&&r.entryReady);
+    if(next){
+      await switchSymbol(next.symbol);
+      const fresh=analyze(),fp=fresh?profitOpportunity(fresh):null;
+      if(fresh&&fresh.bias!=='NEUTRAL'&&fp?.signal&&fresh.bias===next.bias){
+        const opened=openPaper(fresh.bias==='LONG'?'BUY':'SELL',fresh,{hunter:true});
+        if(opened)$('#scanState').textContent=`RISK CUT → ${next.symbol} · AUTO ${fresh.bias} ENTRY`;
+      }
+    }
+    hunterBusy=false;return;
+  }
+  // Pair-loss movement guard is enforced in enforceLiveRisk() on live prices.
   // Scanner only displays the state; it never treats entry fees or a tiny negative
   // PnL as a loss movement. This prevents the old rotate cascade.
   let lossCut=false;
@@ -440,7 +461,7 @@ async function scan(){
   // Do NOT rotate merely because PnL is a few rupiah negative from entry fees/slippage.
   // That old rule caused a loss cascade: enter -> instant fee loss -> rotate -> fee loss again.
   const entryCostBuffer=active&&paperPos ? Math.max(1,Math.abs(Number(paperPos.entry)*Number(paperPos.qty))*IDR*((Math.max(0,Number($('#fee').value)||0)/100*2)+(Math.max(0,Number($('#slippage').value)||0)/100))) : 0;
-  const meaningfulLoss=active&&currentPnl< -Math.max(entryCostBuffer,accountEquity*0.0005);
+  const meaningfulLoss=active&&currentPnl< -Math.max(entryCostBuffer,accountEquity*0.001);
   const canEnter=!active&&!!best;
   const canRotate=active&&best&&best.symbol!==activeSymbol&&((repeatedLoss&&meaningfulLoss&&best.entryReady)||(meaningfulLoss&&materiallyBetter&&(!currentPO.signal||bestOpp>=currentOpp+HUNTER.switchAdvantage)));
   if(active&&lossCut&&hasValidPaperPosition()){
@@ -510,7 +531,7 @@ function openPaper(side,forcedAnalysis=null,opts={}){
   }
   if(g.length){log('ENTRY BLOCKED: '+g.join(', '));let el=$('#engineStatus');if(el){el.className='dangerbox';el.textContent='NO TRADE · '+g.join(', ')}return false}
   
-  let risk=Number($('#risk').value)/100,sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),margin=mode==='paper'?paperMargin():0,leverage=mode==='paper'?paperLeverage():Number($('#lev').value)||1;
+  let risk=Number($('#risk').value)/100,sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),liveEntry=(latestPriceBySymbol[a._symbol||symbol]||latestPriceBySymbol[symbol]),p=Number.isFinite(Number(liveEntry))?Number(liveEntry):a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),margin=mode==='paper'?paperMargin():0,leverage=mode==='paper'?paperLeverage():Number($('#lev').value)||1;
   // Risk-first sizing: the configured margin is only a ceiling. Size the PAPER position so a full SL hit (plus estimated fees/slippage) stays near the configured risk budget.
   const riskBudget=mode==='paper'?Math.max(1,accountEquity*risk):0;
   const feeFrac=Math.max(0,Number($('#fee').value)||0)/100*2;
@@ -534,51 +555,35 @@ function paperLeverage(){return Math.max(1,Number($('#lev').value)||DEFAULT_LEVE
 function paperNotional(){return paperMargin()*paperLeverage()}
 function renderPaperOrderPreview(){const m=paperMargin(),lev=paperLeverage(),notional=paperNotional();$('#marginOut').textContent=fmtIDR(m);$('#positionSizeOut').textContent=fmtIDR(notional);if(hasValidPaperPosition())return;let a=analyze();if(a){let sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=a.bias==='SHORT'?p*(1+sp):p*(1-sp),tp=a.bias==='SHORT'?p*(1-sp*rr):p*(1+sp*rr);$('#slOut').textContent=fmtP(sl);$('#tpOut').textContent=fmtP(tp)}}
 function updatePaperAccount(unrealized=0){const balance=accountEquity+paperPnl,usedMargin=hasValidPaperPosition()?Number(paperPos.margin||0):0;$('#acctStatus').textContent='PAPER';$('#balance').textContent=fmtIDR(balance);$('#available').textContent=fmtIDR(Math.max(0,balance-usedMargin));$('#unrealized').textContent=fmtIDR(unrealized);$('#paperPnl').textContent=fmtIDR(paperPnl);renderPerformance(unrealized)}
+function enforceLiveRisk(price,source='LIVE'){
+ if(!hasValidPaperPosition()||!Number.isFinite(Number(price))||Number(price)<=0)return false;
+ const p=paperPos,pnl=currentPaperPnl(Number(price));
+ const hardPct=Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
+ const hardLimit=Math.max(1,accountEquity*hardPct);
+ if(pnl<=-hardLimit){
+   log(`HARD LOSS GUARD · ${p.symbol} ${source} · ${fmtIDR(pnl)} <= -${fmtIDR(hardLimit)}`);
+   closePaper(Number(price),pnl,'HARD FLOATING LOSS 0.20% EQUITY'); return true;
+ }
+ const negLimit=Math.max(2,Math.min(3,Number($('#negativeScans').value)||3));
+ const moveStep=Math.max(Math.abs(p.entry-p.initialSL)*0.12,Math.abs(p.entry)*0.00025);
+ const anchor=Number(p.moveAnchorPrice||p.entry);
+ const adverse=p.side==='BUY'?Number(price)<anchor-moveStep:Number(price)>anchor+moveStep;
+ const favorable=p.side==='BUY'?Number(price)>anchor+moveStep:Number(price)<anchor-moveStep;
+ if(adverse){p.adverseMoves=Number(p.adverseMoves||0)+1;p.lastAdversePrice=Number(price);p.moveAnchorPrice=Number(price);p.lastMoveAt=Date.now();persist();log(`LOSS MOVE ${p.symbol} ${p.side} · ${p.adverseMoves}/${negLimit} · ${fmtIDR(pnl)}`);}
+ else if(favorable&&Number(p.adverseMoves||0)>0){p.adverseMoves=0;p.moveAnchorPrice=Number(price);p.lastMoveAt=Date.now();persist();}
+ if(Number(p.adverseMoves||0)>=negLimit&&pnl<0){log(`3-LOSS-MOVE GUARD · ${p.symbol} · ${fmtIDR(pnl)} · CLOSE + ROTATE`);closePaper(Number(price),pnl,'3 ADVERSE MOVES');return true;}
+ return false;
+}
 function updatePosition(price){
  if(!hasValidPaperPosition()||!Number.isFinite(Number(price))||Number(price)<=0)return;
+ if(enforceLiveRisk(Number(price),'TICK'))return;
  let p=paperPos,dir=p.side==='BUY'?1:-1,raw=(price-p.entry)*p.qty*dir,fee=(Math.abs(p.entry*p.qty)+Math.abs(price*p.qty))*Number($('#fee').value)/100,slip=Math.abs(price*p.qty)*Number($('#slippage').value)/100,pnlIDR=(raw-fee-slip)*IDR;
  let r=Math.abs(p.entry-p.initialSL)*p.qty;
  if(pnlIDR>Number(p.peakPnl||0))p.peakPnl=pnlIDR;
  if(!p.be&&raw>=r*1){p.sl=p.entry*(p.side==='BUY'?1.0002:.9998);p.be=true;log('SL PLUS → BREAK EVEN')}
  if(p.trail&&raw>r*1.5){let t=atr()*0.8;p.sl=p.side==='BUY'?Math.max(p.sl,price-t):Math.min(p.sl,price+t)}
  renderPosition(pnlIDR);updatePaperAccount(pnlIDR);renderTradeVisuals();
- // LIVE LOSS-MOVEMENT GUARD: count only meaningful adverse price moves from entry/last adverse anchor.
- // Entry fees/slippage alone never count as a movement. Default is 3 adverse moves, configurable 2–3.
- const negLimit=Math.max(2,Math.min(3,Number($('#negativeScans').value)||3));
- const moveStep=Math.max(Math.abs(p.entry-p.initialSL)*0.12,Math.abs(p.entry)*0.00025);
- const adverse= p.side==='BUY' ? (price < Number(p.moveAnchorPrice||p.entry)-moveStep) : (price > Number(p.moveAnchorPrice||p.entry)+moveStep);
- if(adverse){
-   p.adverseMoves=Number(p.adverseMoves||0)+1;
-   p.lastAdversePrice=price;
-   p.moveAnchorPrice=price;
-   p.lastMoveAt=Date.now();
-   persist();
-   log(`LOSS MOVE ${p.symbol} ${p.side} · ${p.adverseMoves}/${negLimit} · PnL ${fmtIDR(pnlIDR)}`);
- }else{
-   // A meaningful favorable move resets the consecutive adverse-move counter.
-   const favorable=p.side==='BUY' ? price > Number(p.moveAnchorPrice||p.entry)+moveStep : price < Number(p.moveAnchorPrice||p.entry)-moveStep;
-   if(favorable && Number(p.adverseMoves||0)>0){
-     p.adverseMoves=0;
-     p.lastAdversePrice=price;
-     p.moveAnchorPrice=price;
-     p.lastMoveAt=Date.now();
-     persist();
-   }
- }
- if(Number(p.adverseMoves||0)>=negLimit&&pnlIDR<0){
-   log(`PAIR LOSS MOVEMENT CUT → ${p.symbol} ${p.side} · ${p.adverseMoves} gerakan berlawanan · ${fmtIDR(pnlIDR)}`);
-   closePaper(price,pnlIDR,`PAIR LOSS ${p.adverseMoves} MOVES`);
-   return;
- }
- // HARD FLOATING LOSS: emergency ceiling at 0.20% of account equity, regardless of movement count.
- const maxFloatPct=Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
- const riskLimit=Math.max(1,accountEquity*(Math.min(1,Math.max(0.1,Number($('#risk').value)||0.35))/100));
- const hardFloatLimit=Math.max(1,Math.min(accountEquity*maxFloatPct,riskLimit));
- if(pnlIDR<=-hardFloatLimit){
-   log(`HARD FLOATING LOSS → ${p.symbol} ${fmtIDR(pnlIDR)} <= -${fmtIDR(hardFloatLimit)}`);
-   closePaper(price,pnlIDR,'HARD FLOATING LOSS LIMIT 0.20%');
-   return;
- }
+ // Loss movement + hard equity loss are enforced centrally by enforceLiveRisk().
  const dailyLimit=Math.max(1,accountEquity*(Math.min(50,Math.max(0.5,Number($('#dailyLoss').value)||3))/100));
  if(dailyPnl<=-dailyLimit){
    if(hasValidPaperPosition())closePaper(price,pnlIDR,'DAILY LOSS LIMIT');
