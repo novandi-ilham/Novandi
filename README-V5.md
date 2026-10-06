@@ -1,6 +1,6 @@
-# Ilham Novandi Futures Command Center — V5
+# Ilham Novandi Futures Command Center — V6
 
-V5 changes the market-data architecture so Binance Futures Production REST is the authoritative source. Browser WebSocket is an acceleration layer only.
+V6 changes the market-data architecture so Binance Futures Production REST is the authoritative source. Browser WebSocket is an acceleration layer only.
 
 ## Realtime flow
 1. Initial 150 x 15m history: `/api/market/klines` -> `https://fapi.binance.com`.
