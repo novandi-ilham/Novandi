@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V72: DIRECT BINANCE PROD 15M KLINE + STABLE MARKET SYNC + HARD RISK LOCK -->
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08101a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ilham novandi"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png"><link rel="apple-touch-icon" href="/icons/icon-192.png"><!-- V73: GEO-SAFE BINANCE USD-M DATA / VISION ARCHIVE + WS / HARD PAPER RISK LOCK -->
 <title>ilham novandi — Futures Command Center</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
@@ -11,7 +11,7 @@
 <aside class="left">
 <section class="panel"><div class="phead">PAIR SCANNER <span class="pill" id="scanState">READY</span></div><div class="pbody grid2"><button class="btn" id="refreshScan">Refresh</button><button class="btn active" id="autoToggle">AUTO ON</button></div><div class="symbols" id="symbols"></div></section>
 <section class="panel section"><div class="phead">ACCOUNT · IDR</div><div class="pbody"><div class="kv"><span>Status</span><b id="acctStatus">PAPER</b></div><div class="kv"><span>Wallet</span><b id="balance">Rp 10.000.000</b></div><div class="kv"><span>Available</span><b id="available">Rp 10.000.000</b></div><div class="kv"><span>Unrealized</span><b id="unrealized">Rp 0</b></div><div class="kv"><span>Paper PnL</span><b id="paperPnl">Rp 0</b></div><div class="muted" style="font-size:11px;margin-top:6px">Wallet berubah setelah posisi ditutup; PnL berjalan tampil di Unrealized.</div><button class="btn" style="width:100%;margin-top:8px" id="accountBtn">Sync Binance Account</button><button class="btn" style="width:100%;margin-top:6px" id="resetPaperBtn">Reset Paper Account · Rp 10.000.000</button></div></section>
-<section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.35" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="0.2" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Loss moves before close<input id="negativeScans" type="number" value="3" min="2" max="3" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
+<section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.35" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Hard loss / equity %<input id="maxFloatLoss" type="number" value="0.2" min="0.2" max="0.2" step="0.2" readonly></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Loss moves before close<input id="negativeScans" type="number" value="3" min="2" max="3" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
 </aside>
 <main>
 <section class="panel"><div class="tabs"><button class="btn active" data-tf="15m">15M ONLY</button><span class="pill">EMA20</span><span class="pill">S/R</span><span class="pill">FIB</span><span class="pill">WICK</span><span class="pill">BREAKOUT</span></div><div class="chartbox"><div id="chart" class="chart"></div><div class="overlay"><span class="tag" id="symbolTitle">BTCUSDT PERP · USDⓈ-M</span><span class="tag" id="lastPrice">—</span><span class="tag" id="ohlc">O — H — L — C —</span><span class="tag" id="candleDir">CANDLE —</span><span class="tag" id="candleTimer">CLOSE —</span><span class="tag" id="regime">REGIME —</span><span class="tag" id="noTrade">TRADE CHECK —</span></div><div class="tag" style="position:absolute;right:8px;bottom:8px;z-index:4;border-color:#19d59a;color:#b8ffe9">● AUTO ENTRY · ▲ BUY / ▼ SELL · garis Entry / SL / TP</div><div class="charttools"><button class="btn active" data-tool="none">Pointer</button><button class="btn" data-tool="trend">Trendline</button><button class="btn" data-tool="fib">Fib</button><button class="btn" id="srBtn">Auto S/R</button><button class="btn" id="clearDraw">Clear</button></div></div></section>
@@ -21,7 +21,7 @@
 <section class="panel section"><div class="phead">PAPER PERFORMANCE · REALTIME</div><div class="pbody"><div class="metricgrid"><div class="metric"><span class="muted">Total trade</span><b id="perfTrades">0</b></div><div class="metric"><span class="muted">Win rate</span><b id="perfWin">0%</b></div><div class="metric"><span class="muted">Net PnL</span><b id="perfNet">Rp 0</b></div><div class="metric"><span class="muted">Profit factor</span><b id="perfPF">—</b></div></div><div class="grid3" style="margin-top:8px"><div class="metric"><span class="muted">Best trade</span><b id="perfBest">Rp 0</b></div><div class="metric"><span class="muted">Worst trade</span><b id="perfWorst">Rp 0</b></div><div class="metric"><span class="muted">Consecutive loss</span><b id="perfStreak">0</b></div></div><div id="perfLive" class="goodbox" style="margin-top:8px">Posisi aktif: belum ada</div><div id="perfHistory" class="small muted" style="margin-top:8px">Belum ada trade yang ditutup.</div></div></section><section class="panel section"><div class="phead">BACKTEST CENTER · 15M</div><div class="pbody backtest"><div class="form"><label>Lookback candle<input id="btLimit" type="number" value="500" min="100" max="1500"></label><label>Risk %<input id="btRisk" type="number" value="0.75" min="0.1" max="2"></label><label>R:R<input id="btRR" type="number" value="2" min="1" max="5" step="0.5"></label><label>Strategy<select id="btStrategy"><option value="trend">EMA20 + Breakout + S/R</option><option value="reversal">Wick Reversal + S/R</option><option value="hybrid">Hybrid 15M</option></select></label><button class="btn cyan" id="runBacktest">RUN BACKTEST</button></div><div><div class="metricgrid"><div class="metric"><span class="muted">Trades</span><b id="btTrades">—</b></div><div class="metric"><span class="muted">Win rate</span><b id="btWin">—</b></div><div class="metric"><span class="muted">Profit factor</span><b id="btPF">—</b></div><div class="metric"><span class="muted">Max DD</span><b id="btDD">—</b></div></div><div class="grid3" style="margin-top:8px"><div class="metric"><span class="muted">Net R</span><b id="btNet">—</b></div><div class="metric"><span class="muted">Worst streak</span><b id="btStreak">—</b></div><div class="metric"><span class="muted">Best R</span><b id="btBest">—</b></div></div><div id="btSummary" class="warning" style="margin-top:8px">Jalankan backtest untuk mengukur consecutive loss dan drawdown.</div></div></div></section>
 </main>
 <aside class="right">
-<section class="panel"><div class="phead">ORDER CONTROL</div><div class="pbody form"><label>Mode<select id="orderMode"><option value="paper">PAPER</option><option value="testnet">TESTNET</option><option value="live">LIVE</option></select></label><label>Margin / Trade (IDR)<input id="margin" type="number" value="500000" min="10000" step="10000"></label><label>Leverage<input id="lev" type="number" value="10" min="1" max="125" step="1"></label><div class="grid2"><div class="metric"><span class="muted">Position Size</span><b id="positionSizeOut">Rp 5.000.000</b></div><div class="metric"><span class="muted">Margin</span><b id="marginOut">Rp 500.000</b></div></div><label>Quantity (manual non-paper)<input id="qty" type="number" value="0.001" min="0.000001" step="0.001"></label><label>SL %<input id="slPct" type="number" value="0.8" step="0.1"></label><label>R:R<input id="rr" type="number" value="2" step="0.5"></label><div class="grid2"><div class="metric"><span class="muted">SL</span><b id="slOut">—</b></div><div class="metric"><span class="muted">TP</span><b id="tpOut">—</b></div></div><div id="liveWarning" class="dangerbox">LIVE TERKUNCI. PAPER adalah default.</div></div></section>
+<section class="panel"><div class="phead">ORDER CONTROL</div><div class="pbody form"><label>Mode<select id="orderMode"><option value="paper">PAPER ONLY</option></select></label><label>Margin / Trade (IDR)<input id="margin" type="number" value="500000" min="10000" step="10000"></label><label>Leverage<input id="lev" type="number" value="10" min="1" max="125" step="1"></label><div class="grid2"><div class="metric"><span class="muted">Position Size</span><b id="positionSizeOut">Rp 5.000.000</b></div><div class="metric"><span class="muted">Margin</span><b id="marginOut">Rp 500.000</b></div></div><label>Quantity (manual non-paper)<input id="qty" type="number" value="0.001" min="0.000001" step="0.001"></label><label>SL %<input id="slPct" type="number" value="0.8" step="0.1"></label><label>R:R<input id="rr" type="number" value="2" step="0.5"></label><div class="grid2"><div class="metric"><span class="muted">SL</span><b id="slOut">—</b></div><div class="metric"><span class="muted">TP</span><b id="tpOut">—</b></div></div><div id="liveWarning" class="dangerbox">LIVE TERKUNCI. PAPER adalah default.</div></div></section>
 <section class="panel section"><div class="phead">TOP GAINERS / LOSERS</div><div class="pbody" id="leaders"><div class="muted">Loading…</div></div></section>
 <section class="panel section"><div class="phead">NO-TRADE ZONE</div><div class="pbody"><div id="guardReasons" class="muted">Belum ada alasan.</div></div></section>
 <section class="panel section"><div class="phead">SYSTEM LOG</div><div class="pbody logs" id="logs"></div></section>
@@ -48,7 +48,7 @@ window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;const b=d
 document.addEventListener('click',async e=>{if(e.target?.id==='installBtn'&&deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;e.target.style.display='none'}});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}))}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
+let marketDataVerified=false,marketDataSource='NONE',marketDataError='',latestPriceBySymbol={}, liveKlinesBySymbol=new Map(), symbol='BTCUSDT',tf='15m',candles=[],chart,series,emaSeries,ws=null,drawings=[],tool='none',auto=true,paperPos=null,paperPnl=0,dailyPnl=0,lossStreak=0,killed=false,accountEquity=10000000,mode='paper',srActive=false,tradeStats={wins:0,losses:0},tradeHistory=[],hunterBusy=false,lastHunterCandle=0,lastHunterSymbol='',lastSwitchAt=0,positionPriceLines=[],tradeMarkers=[],symbolLosses={},symbolCooldowns={},symbolLossStreaks={};
 const DEFAULT_PAPER_MARGIN_IDR=500000; const DEFAULT_LEVERAGE=10;
 const HUNTER={switchAdvantage:18,scanMs:1100,candidateCount:36,cooldownMs:350,klinesCacheMs:3000,maxConcurrent:8};
 const scanKlineCache=new Map(); let scanTickerCache={at:0,data:null}; let scanStats={ok:0,fail:0,total:0,last:0};
@@ -239,7 +239,7 @@ function initChart(){
   chart=LightweightCharts.createChart(host,{autoSize:true,layout:{background:{color:'transparent'},textColor:'#8fa1b6'},grid:{vertLines:{color:'#132030'},horzLines:{color:'#132030'}},rightPriceScale:{borderColor:'#243448'},timeScale:{borderColor:'#243448',timeVisible:true,secondsVisible:false},crosshair:{mode:1}});
   series=chart.addCandlestickSeries({upColor:'#19d59a',downColor:'#ff5c72',borderUpColor:'#19d59a',borderDownColor:'#ff5c72',wickUpColor:'#19d59a',wickDownColor:'#ff5c72'});
   emaSeries=chart.addLineSeries({color:'#f4c44f',lineWidth:2});
-  $('#conn').textContent='CHART READY · 15M';
+  $('#conn').textContent='CHART LIB READY · WAITING BINANCE DATA · 15M';
  }catch(e){
   $('#conn').textContent='CHART LIB ERROR';
   log('Chart library error: '+e.message);
@@ -264,27 +264,43 @@ function redraw(){
 async function fetchProductionKlines(symbolName){
   const q=`symbol=${encodeURIComponent(symbolName)}&interval=15m&limit=150`;
   let directErr='', proxyErr='';
-  // Chart truth: read Binance USDⓈ-M Production directly from the browser first.
-  // This removes Vercel/serverless latency and prevents a broken /api route from
-  // making the visible chart disappear.
   try{
     const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?${q}&_=${Date.now()}`,{cache:'no-store',mode:'cors'});
     const text=await r.text();
-    if(!r.ok)throw new Error(`Binance HTTP ${r.status} ${text.slice(0,100)}`);
+    if(!r.ok)throw new Error(`Binance HTTP ${r.status} ${text.slice(0,140)}`);
     const d=JSON.parse(text); if(!Array.isArray(d)||!d.length)throw new Error('Binance klines kosong');
+    marketDataVerified=true; marketDataSource='BINANCE_USDM_PRODUCTION_FAPI'; marketDataError='';
     return d;
   }catch(e){directErr=e.message||String(e)}
-  // Same production source through our server proxy as a transport fallback.
   try{
     const r=await fetch(`/api/market/klines?${q}&_=${Date.now()}`,{cache:'no-store',headers:{'Accept':'application/json'}});
     const text=await r.text();
-    if(!r.ok)throw new Error(`Proxy HTTP ${r.status} ${text.slice(0,100)}`);
+    if(!r.ok)throw new Error(`Proxy HTTP ${r.status} ${text.slice(0,160)}`);
     const d=JSON.parse(text); if(!Array.isArray(d)||!d.length)throw new Error('Proxy klines kosong');
+    marketDataVerified=true; marketDataSource='BINANCE_USDM_PRODUCTION_FAPI'; marketDataError='';
     return d;
   }catch(e){proxyErr=e.message||String(e)}
-  throw new Error(`PROD KLINE GAGAL · direct: ${directErr} · proxy: ${proxyErr}`);
+  // Geo-safe exact Binance fallback: completed USD-M 15M candles from Binance Vision.
+  // Vision is an official Binance public-data archive; it intentionally lags the live day.
+  // We never label archive history as live-complete and never allow auto-entry from it.
+  try{
+    const rows=[]; const now=new Date();
+    for(let i=1;i<=5 && rows.length<150;i++){
+      const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-i));
+      const date=d.toISOString().slice(0,10);
+      const r=await fetch(`/api/market/archive?symbol=${encodeURIComponent(symbolName)}&date=${date}&_=${Date.now()}`,{cache:'no-store'});
+      if(r.status===404)continue;
+      const text=await r.text(); if(!r.ok)throw new Error(text.slice(0,160));
+      const block=JSON.parse(text); if(Array.isArray(block))rows.unshift(...block);
+    }
+    if(rows.length<30)throw new Error('Binance Vision archive kurang dari 30 candle');
+    marketDataVerified=false; marketDataSource='BINANCE_VISION_ARCHIVE'; marketDataError=`Production FAPI unavailable · direct: ${directErr} · proxy: ${proxyErr}`;
+    return rows.slice(-150);
+  }catch(e){
+    marketDataVerified=false; marketDataSource='NONE'; marketDataError=`PROD KLINE GAGAL · direct: ${directErr} · proxy: ${proxyErr} · archive: ${e.message||e}`;
+    throw new Error(marketDataError);
+  }
 }
-
 async function fetchProductionPrice(symbolName){
   const q=`symbol=${encodeURIComponent(symbolName)}`;
   try{
@@ -299,6 +315,12 @@ async function fetchProductionPrice(symbolName){
   }catch(e){return NaN}
 }
 
+function setMarketStatus(extra=''){
+  const el=$('#conn'); if(!el)return;
+  if(marketDataVerified) el.textContent='BINANCE PROD · 15M · VERIFIED'+(extra?' · '+extra:'');
+  else if(marketDataSource==='BINANCE_VISION_ARCHIVE') el.textContent='BINANCE ARCHIVE · 15M · LIVE HISTORY BLOCKED';
+  else el.textContent='MARKET DATA BLOCKED · BINANCE 451';
+}
 async function loadCandles(){
   let last='unknown';
   for(let attempt=1;attempt<=3;attempt++){
@@ -307,7 +329,7 @@ async function loadCandles(){
       const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
       if(next.length<30)throw new Error('Candle 15M kurang dari 30 bar');
       candles=next.slice(-150); redraw();
-      $('#conn').textContent='BINANCE PROD · 15M HISTORY SYNCED';
+      setMarketStatus();
       return;
     }catch(e){last=e.message;await new Promise(r=>setTimeout(r,500*attempt));}
   }
@@ -319,7 +341,7 @@ function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
   const c={symbol:sym,time:Math.floor(Number(k.t)/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v,closed:!!k.x,sourceTs:Date.now()};
   if(![c.time,c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite))return;
-  if(sym===symbol&&candles.length){ const last=candles.at(-1); if(c.time>last.time+900){ resyncVisibleMarket(wsGeneration); return; } }
+  if(sym===symbol&&candles.length){ const last=candles.at(-1); if(c.time>last.time+900 && marketDataVerified){ resyncVisibleMarket(wsGeneration); return; } }
   liveKlinesBySymbol.set(sym,c); latestPriceBySymbol[sym]=c.close; lastWsKlineAt=Date.now();
   const cached=scanKlineCache.get(sym); if(cached?.data?.length){const a=cached.data.slice(),i=a.findIndex(x=>x.time===c.time);if(i>=0)a[i]={...a[i],...c};else if(c.time>a.at(-1).time)a.push(c);scanKlineCache.set(sym,{...cached,data:a.slice(-150)})}
   if(sym!==symbol)return;
@@ -328,7 +350,7 @@ function applyLiveKline(k){
   if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
   if(hasValidPaperPosition()&&paperPos.symbol===sym&&enforceLiveRisk(c.close,'KLINE'))return;
   const ev=ema(candles.map(x=>x.close)).at(-1); if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
-  updateUI(); renderTradeVisuals(); $('#conn').textContent='BINANCE WS LIVE · 15M PROD · '+sym;
+  updateUI(); renderTradeVisuals(); $('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · 15M PROD · '+sym:'BINANCE WS LIVE · CURRENT CANDLE · HISTORY BLOCKED';
 }
 function applyLiveTicker(t){
   const sym=String(t.s||'').toUpperCase(), price=Number(t.c);
@@ -417,11 +439,11 @@ function connectMarketWS(symbols=[]){
   $('#conn').textContent='BINANCE WS CONNECTING · USDⓈ-M · 15M'; lastWsKlineAt=0; lastWsTradeAt=0;
   try{
     ws=new WebSocket(url);
-    ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=0;lastWsTradeAt=Date.now();$('#conn').textContent='BINANCE WS LIVE · USDⓈ-M · SYNCING';resyncVisibleMarket(gen)};
+    ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=0;lastWsTradeAt=Date.now();$('#conn').textContent=marketDataVerified?'BINANCE WS LIVE · USDⓈ-M · SYNCING':'BINANCE WS LIVE · USDⓈ-M · HISTORY BLOCKED';if(marketDataVerified)resyncVisibleMarket(gen)};
     ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='24hrTicker')applyLiveTicker(payload)}catch{}};
-    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · REST FALLBACK'};
-    ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · REST SYNC';scheduleWsReconnect(gen)}};
-    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const activeLive=liveKlinesBySymbol.get(symbol); const ageK=activeLive?.sourceTs?Date.now()-Number(activeLive.sourceTs):Infinity; const ageT=lastWsTradeAt?Date.now()-lastWsTradeAt:Infinity; if(ws?.readyState===1&&ageK>10000&&ageT>10000){$('#conn').textContent='WS STALE · RESYNCING';resyncVisibleMarket(gen);try{ws.close()}catch{}}},3000);
+    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · PAPER ENTRY BLOCKED'};
+    ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · PAPER ENTRY BLOCKED';scheduleWsReconnect(gen)}};
+    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const ageK=lastWsKlineAt?Date.now()-lastWsKlineAt:Infinity; if(ws?.readyState===1&&ageK>15000){$('#conn').textContent='WS STALE · RECONNECTING';try{ws.close()}catch{}}},3000);
   }catch(e){$('#conn').textContent='WS ERROR · REST FALLBACK';scheduleWsReconnect(gen)}
 }
 function connectWS(){connectMarketWS([...marketWsSymbols,symbol])}
@@ -443,7 +465,7 @@ function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=pap
 function lossExitReason(current,best){
  if(!hasValidPaperPosition())return null;
  const p=paperPos,price=current?.c?.close||p.entry,pnl=currentPaperPnl(price);
- const maxLoss=Math.max(1,Number(accountEquity))*Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
+ const maxLoss=Math.max(1,Number(accountEquity))*Math.min(10,Math.max(0.1,0.2))/100;
  const sameBias=current?.bias===(p.side==='BUY'?'LONG':'SHORT');
  const invalid=!current?.allowed||!sameBias;
  const givebackPct=Math.min(100,Math.max(1,Number($('#profitGiveback').value)||10))/100;
@@ -460,6 +482,7 @@ function lossExitReason(current,best){
  return null;
 }
 async function scan(){
+ if(!marketDataVerified){$('#scanState').textContent='DATA BLOCKED · Binance 451';return;}
  if(hunterBusy)return; hunterBusy=true;
  const scanStarted=Date.now();
  try{
@@ -602,9 +625,10 @@ function syncPaperStateUI(a=null){
   if(statusEl){statusEl.className='warning';statusEl.textContent=`POSISI AKTIF · ${p.side} ${p.symbol} · Entry ${fmtTradeP(p.entry)}`;}
   return true;
 }
-function guard(){if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
+function guard(){if(!marketDataVerified)return['market data Binance 15M belum terverifikasi'];if(killed)return['kill switch aktif'];if(hasValidPaperPosition()&&Number($('#maxPos').value)<=1)return['sudah ada posisi aktif'];if(dailyPnl<=-(accountEquity*Number($('#dailyLoss').value)/100))return['daily loss limit tercapai'];let a=analyze();return a&&!a.allowed?a.reasons:[]}
 function positionSize(price,sl){let risk=accountEquity*Number($('#risk').value)/100;let dist=Math.abs(price-sl);return dist?risk/dist:Number($('#qty').value)}
 function openPaper(side,forcedAnalysis=null,opts={}){
+  if(!marketDataVerified){log('ENTRY BLOCKED: market data Binance 15M belum terverifikasi');syncPaperStateUI();return false}
   if(hasValidPaperPosition()){syncPaperStateUI();log(`ENTRY BLOCKED: sudah ada posisi ${paperPos.side} ${paperPos.symbol}`);return false}
   let a=forcedAnalysis||analyze();if(!a)return false;
   let g=opts.hunter?[]:guard();
@@ -631,7 +655,7 @@ function openPaper(side,forcedAnalysis=null,opts={}){
   paperPos={symbol,side,entry:p,qty,sl,tp,initialSL:sl,be:false,partial:false,trail:false,opened:Date.now(),risk,margin:usedMargin,leverage,notional,entryCandleTime:a.c.time,entryScore:a.score,entryBias:a.bias,peakPnl:0,negativeScans:0,negativeCandleTime:0,adverseMoves:0,lastAdversePrice:p,moveAnchorPrice:p,lastMoveAt:Date.now()};
   addTradeMarker('entry',paperPos); renderTradeVisuals(); persist(); syncPaperStateUI(a); log(`AUTO/ PAPER ${side} ${symbol} · ENTRY ${fmtTradeP(p)} · SL ${fmtTradeP(sl)} · TP ${fmtTradeP(tp)} · SCORE ${a.score.toFixed(0)}% · MOMENTUM ${a.profitEdge?.toFixed?.(2)??'—'}`); return true;
 }
-function renderPosition(pnl=0){if(!hasValidPaperPosition()){$('#position').innerHTML='<div class="muted">Tidak ada posisi.</div>';return}let p=paperPos;$('#position').innerHTML=`<div class="grid3"><div class="metric"><span class="muted">Side</span><b class="${p.side==='BUY'?'up':'down'}">${p.side} ${p.symbol}</b></div><div class="metric"><span class="muted">Entry</span><b>${fmtTradeP(p.entry)}</b></div><div class="metric"><span class="muted">Qty</span><b>${p.qty.toFixed(6)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">Margin</span><b>${fmtIDR(p.margin||0)}</b></div><div class="metric"><span class="muted">Leverage</span><b>${Number(p.leverage||1)}x</b></div><div class="metric"><span class="muted">Position Size</span><b>${fmtIDR(p.notional||0)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">SL</span><b>${fmtTradeP(p.sl)}</b></div><div class="metric"><span class="muted">TP</span><b>${fmtTradeP(p.tp)}</b></div><div class="metric"><span class="muted">PnL</span><b class="${pnl>=0?'up':'down'}">${fmtIDR(pnl)}</b></div></div><div class="kv"><span>BE / Partial / Trail</span><b>${p.be?'ON':'OFF'} / ${p.partial?'ON':'OFF'} / ${p.trail?'ON':'OFF'}</b></div><div class="kv"><span>Loss Movement / Hard Loss</span><b>${Number(p.adverseMoves||0)} / ${Math.max(2,Math.min(3,Number($('#negativeScans').value)||3))} · -${fmtIDR(accountEquity*(Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100))}</b></div><div class="kv"><span>Risk Budget / Peak Profit / Giveback</span><b>${fmtIDR((accountEquity*Number($('#risk').value)/100)||0)} / ${fmtIDR(p.peakPnl||0)} / ${Number($('#profitGiveback')?.value||10)}%</b></div>`}
+function renderPosition(pnl=0){if(!hasValidPaperPosition()){$('#position').innerHTML='<div class="muted">Tidak ada posisi.</div>';return}let p=paperPos;$('#position').innerHTML=`<div class="grid3"><div class="metric"><span class="muted">Side</span><b class="${p.side==='BUY'?'up':'down'}">${p.side} ${p.symbol}</b></div><div class="metric"><span class="muted">Entry</span><b>${fmtTradeP(p.entry)}</b></div><div class="metric"><span class="muted">Qty</span><b>${p.qty.toFixed(6)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">Margin</span><b>${fmtIDR(p.margin||0)}</b></div><div class="metric"><span class="muted">Leverage</span><b>${Number(p.leverage||1)}x</b></div><div class="metric"><span class="muted">Position Size</span><b>${fmtIDR(p.notional||0)}</b></div></div><div class="grid3" style="margin-top:7px"><div class="metric"><span class="muted">SL</span><b>${fmtTradeP(p.sl)}</b></div><div class="metric"><span class="muted">TP</span><b>${fmtTradeP(p.tp)}</b></div><div class="metric"><span class="muted">PnL</span><b class="${pnl>=0?'up':'down'}">${fmtIDR(pnl)}</b></div></div><div class="kv"><span>BE / Partial / Trail</span><b>${p.be?'ON':'OFF'} / ${p.partial?'ON':'OFF'} / ${p.trail?'ON':'OFF'}</b></div><div class="kv"><span>Loss Movement / Hard Loss</span><b>${Number(p.adverseMoves||0)} / ${Math.max(2,Math.min(3,Number($('#negativeScans').value)||3))} · -${fmtIDR(accountEquity*(Math.min(10,Math.max(0.1,0.2))/100))}</b></div><div class="kv"><span>Risk Budget / Peak Profit / Giveback</span><b>${fmtIDR((accountEquity*Number($('#risk').value)/100)||0)} / ${fmtIDR(p.peakPnl||0)} / ${Number($('#profitGiveback')?.value||10)}%</b></div>`}
 
 function renderPerformance(unrealized=0){const n=tradeHistory.length,w=tradeStats.wins,l=tradeStats.losses,net=paperPnl,grossWin=tradeHistory.filter(x=>x.pnl>0).reduce((a,x)=>a+x.pnl,0),grossLoss=Math.abs(tradeHistory.filter(x=>x.pnl<0).reduce((a,x)=>a+x.pnl,0));$('#perfTrades').textContent=n;$('#perfWin').textContent=(n?((w/n)*100).toFixed(1):'0')+'%';$('#perfNet').textContent=fmtIDR(net);$('#perfPF').textContent=grossLoss?(grossWin/grossLoss).toFixed(2):'—';$('#perfBest').textContent=fmtIDR(n?Math.max(...tradeHistory.map(x=>x.pnl)):0);$('#perfWorst').textContent=fmtIDR(n?Math.min(...tradeHistory.map(x=>x.pnl)):0);$('#perfStreak').textContent=lossStreak;$('#perfLive').textContent=hasValidPaperPosition()?`Posisi ${paperPos.side} ${paperPos.symbol} · Entry ${fmtTradeP(paperPos.entry)} · Unrealized ${fmtIDR(unrealized)}`:'Posisi aktif: belum ada';if(n){const rows=tradeHistory.slice(-5).reverse().map(x=>`<div class="log"><b>${x.symbol} ${x.side}</b> · ${fmtIDR(x.pnl)} · ${x.result} · ${new Date(x.time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</div>`).join('');$('#perfHistory').innerHTML=rows}else $('#perfHistory').textContent='Belum ada trade yang ditutup.'}
 function paperMargin(){return Math.max(0,Number($('#margin').value)||DEFAULT_PAPER_MARGIN_IDR)}
@@ -642,7 +666,7 @@ function updatePaperAccount(unrealized=0){const balance=accountEquity+paperPnl,u
 function enforceLiveRisk(price,source='LIVE'){
  if(!hasValidPaperPosition()||!Number.isFinite(Number(price))||Number(price)<=0)return false;
  const p=paperPos,pnl=currentPaperPnl(Number(price));
- const hardPct=Math.min(10,Math.max(0.1,Number($('#maxFloatLoss').value)||0.2))/100;
+ const hardPct=Math.min(10,Math.max(0.1,0.2))/100;
  const hardLimit=Math.max(1,accountEquity*hardPct);
  if(pnl<=-hardLimit){
    log(`HARD LOSS GUARD · ${p.symbol} ${source} · ${fmtIDR(pnl)} <= -${fmtIDR(hardLimit)}`);
@@ -684,9 +708,9 @@ function closePaper(price=(analyze()?.c.close||paperPos?.entry),pnlOverride=null
 async function submitOrder(side){if(mode==='paper'){openPaper(side);return}if(killed){alert('Kill switch aktif.');return}let g=guard();if(g.length){alert('ENTRY DIBLOKIR: '+g.join(', '));return}let a=analyze(),sp=Number($('#slPct').value)/100,rr=Number($('#rr').value),p=a.c.close,sl=side==='BUY'?p*(1-sp):p*(1+sp),tp=side==='BUY'?p*(1+sp*rr):p*(1-sp*rr),q=Number($('#qty').value);if(!confirm(`${mode.toUpperCase()} ${side} ${symbol}\nEntry ~ ${fmtP(p)}\nSL ${fmtP(sl)}\nTP ${fmtP(tp)}\nKirim order?`))return;try{let endpoint=mode==='testnet'?'/api/bracket-order':'/api/bracket-order';let r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,side,quantity:q,stopPrice:sl,takeProfitPrice:tp})});let d=await r.json();if(!r.ok)throw Error(d.error||'Order gagal');log(`${mode.toUpperCase()} ${side} ${symbol} entry ${d.entry?.orderId||'ok'} + bracket SL/TP`);await account()}catch(e){log('ORDER ERROR: '+e.message);alert(e.message)}}
 async function closePosition(){if(mode==='paper'){closePaper();return}let d=await (await fetch('/api/account')).json();let p=(d.positions||[]).find(x=>x.symbol===symbol&&Number(x.positionAmt)!==0);if(!p){alert('Tidak ada posisi Binance untuk pair ini.');return}if(!confirm('Tutup posisi '+symbol+' sekarang?'))return;let side=Number(p.positionAmt)>0?'SELL':'BUY';try{let r=await fetch('/api/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,side,quantity:Math.abs(Number(p.positionAmt))})});let x=await r.json();if(!r.ok)throw Error(x.error||'Close gagal');log('LIVE/TESTNET position closed');await account()}catch(e){alert(e.message)}}
 async function account(){if(mode==='paper'){updatePaperAccount(hasValidPaperPosition()?0:0);return }try{let d=await(await fetch('/api/account')).json();if(!d.connected){$('#acctStatus').textContent='NOT CONFIGURED';return}$('#acctStatus').textContent='CONNECTED';accountEquity=+d.account.walletBalance*IDR;$('#balance').textContent=fmtIDR(accountEquity);$('#available').textContent=fmtIDR(+d.account.availableBalance*IDR);$('#unrealized').textContent=fmtIDR(+d.account.unrealizedProfit*IDR)}catch(e){log('Account error: '+e.message)}}
-function setMode(){mode=$('#orderMode').value;$('#mode').textContent=mode.toUpperCase()+' · 15M';$('#liveWarning').className=mode==='live'?'dangerbox':mode==='testnet'?'warning':'goodbox';$('#liveWarning').textContent=mode==='live'?'LIVE AKTIF hanya jika server ALLOW_LIVE_TRADING=true.':mode==='testnet'?'TESTNET: gunakan API Testnet, bukan API production.':'PAPER: tidak ada order sungguhan.';account()}
+function setMode(){mode='paper';$('#orderMode').value='paper';$('#mode').textContent=mode.toUpperCase()+' · 15M';$('#liveWarning').className=mode==='live'?'dangerbox':mode==='testnet'?'warning':'goodbox';$('#liveWarning').textContent=mode==='live'?'LIVE AKTIF hanya jika server ALLOW_LIVE_TRADING=true.':mode==='testnet'?'TESTNET: gunakan API Testnet, bukan API production.':'PAPER: tidak ada order sungguhan.';account()}
 function runBacktest(){let n=Math.min(Number($('#btLimit').value),candles.length-25),risk=Number($('#btRisk').value),rr=Number($('#btRR').value),start=candles.length-n,equity=0,peak=0,maxDD=0,wins=0,losses=0,net=0,worst=0,streak=0,best=-Infinity;for(let i=start+20;i<candles.length-1;i++){let sub=candles.slice(0,i+1),old=candles; candles=sub;let a=analyze();candles=old;if(!a)continue;let signal=$('#btStrategy').value==='reversal'?(a.wick===1?'LONG':a.wick===-1?'SHORT':null):a.bias==='LONG'?'LONG':a.bias==='SHORT'?'SHORT':null;if(!signal||!a.allowed)continue;let entry=candles[i].close,slPct=Number($('#slPct').value)/100,sl=signal==='LONG'?entry*(1-slPct):entry*(1+slPct),tp=signal==='LONG'?entry*(1+slPct*rr):entry*(1-slPct*rr),out=null;for(let j=i+1;j<candles.length;j++){let c=candles[j];if(signal==='LONG'){if(c.low<=sl){out=-1;break}if(c.high>=tp){out=rr;break}}else{if(c.high>=sl){out=-1;break}if(c.low<=tp){out=rr;break}}}if(out===null)continue;net+=out;equity+=out*risk;best=Math.max(best,out);if(out>0){wins++;streak=0}else{losses++;streak++;worst=Math.max(worst,streak)}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}let trades=wins+losses,pf=losses?wins*rr/losses:Infinity;$('#btTrades').textContent=trades;$('#btWin').textContent=trades?(wins/trades*100).toFixed(1)+'%':'—';$('#btPF').textContent=Number.isFinite(pf)?pf.toFixed(2):'∞';$('#btDD').textContent=maxDD.toFixed(2)+'%';$('#btNet').textContent=net.toFixed(2)+'R';$('#btStreak').textContent=worst;$('#btBest').textContent=best===-Infinity?'—':best.toFixed(2)+'R';$('#btSummary').textContent=trades?`Hasil simulasi 15M: ${trades} trade, ${wins} win, ${losses} loss. Consecutive loss terburuk ${worst}. Gunakan hasil ini untuk mengukur robustness, bukan jaminan hasil masa depan.`:'Tidak ada setup valid pada periode tersebut.';log('Backtest selesai: '+trades+' trades')}
 $$('[data-tool]').forEach(b=>b.onclick=()=>{$$('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool});$('#srBtn').onclick=()=>{srActive=!srActive;$('#srBtn').classList.toggle('active',srActive);if(srActive)drawSR();else{drawings.forEach(x=>x.remove?.());drawings=[]}};$('#clearDraw').onclick=()=>{drawings.forEach(x=>x.remove?.());drawings=[]};$('#buyBtn').onclick=()=>submitOrder('BUY');$('#sellBtn').onclick=()=>submitOrder('SELL');$('#closeBtn').onclick=closePosition;$('#beBtn').onclick=()=>{if(paperPos){paperPos.sl=paperPos.entry*(paperPos.side==='BUY'?1.0002:.9998);paperPos.be=true;renderPosition();log('Manual SL Plus / BE')}};$('#partialBtn').onclick=()=>{if(paperPos&&!paperPos.partial){paperPos.qty*=.5;paperPos.partial=true;log('Partial TP: 50% size dikunci')}};$('#trailBtn').onclick=()=>{if(paperPos){paperPos.trail=!paperPos.trail;log('Trailing '+(paperPos.trail?'ON':'OFF'))}};$('#orderMode').onchange=setMode;['margin','lev','risk','slPct','rr','maxFloatLoss','profitGiveback','negativeScans'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener('input',()=>{renderPaperOrderPreview();persist();});el.addEventListener('change',()=>{renderPaperOrderPreview();persist();});}});$('#accountBtn').onclick=account;$('#refreshScan').onclick=scan;$('#autoToggle').onclick=()=>{auto=!auto;$('#autoToggle').textContent=auto?'AUTO ON':'AUTO OFF'};$('#killBtn').onclick=()=>{killed=!killed;$('#killBtn').textContent='KILL SWITCH: '+(killed?'ON':'OFF');$('#killBtn').classList.toggle('active',killed);if(killed)log('KILL SWITCH AKTIF — auto entry diblokir')};$('#runBacktest').onclick=runBacktest;
 $('#resetPaperBtn')?.addEventListener('click',()=>{if(!confirm('Reset akun paper ke Rp 10.000.000? Posisi dan riwayat paper akan dihapus.'))return;paperPos=null;paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};tradeHistory=[];tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};accountEquity=10000000;killed=false;auto=true;localStorage.removeItem('ilhamPaperStateV58');localStorage.removeItem('ilhamPaperStateV62');clearPositionVisuals();persist();renderPosition();updatePaperAccount(0);$('#dailyLossOut').textContent=fmtIDR(0);$('#lossStreak').textContent='0';log('PAPER ACCOUNT RESET · Rp 10.000.000 · ledger bersih');});
-(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';try{await loadCandles();pollLiveSnapshot();connectWS();renderPosition();await scan();log('System ready · 15M only · BINANCE WS shared feed · PAPER default')}catch(e){log('Init error: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,5000);setInterval(pollLiveSnapshot,2000);setInterval(scan,HUNTER.scanMs)})();
+(async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol+' PERP · USDⓈ-M';try{await loadCandles();pollLiveSnapshot();connectWS();renderPosition();await scan();log('System ready · 15M only · BINANCE WS shared feed · PAPER default')}catch(e){setMarketStatus();log('Init error: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,5000);setInterval(pollLiveSnapshot,2000);setInterval(scan,HUNTER.scanMs)})();
 </script></body></html>
