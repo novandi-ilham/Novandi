@@ -274,7 +274,7 @@ async function loadCandles(){
  }
  throw new Error(last);
 }
-let wsReconnectTimer=null, wsWatchdogTimer=null, wsRefreshTimer=null, wsGeneration=0, lastWsKlineAt=0, lastWsTradeAt=0, marketWsSymbols=new Set(), marketWsKey='';
+let wsReconnectTimer=null, wsWatchdogTimer=null, wsRefreshTimer=null, wsGeneration=0, lastWsKlineAt=0, lastWsTradeAt=0, marketWsSymbols=new Set(), marketWsKey='', marketWsEpoch=0;
 function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
   const c={symbol:sym,time:Math.floor(Number(k.t)/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v,closed:!!k.x,sourceTs:Date.now()};
@@ -321,25 +321,42 @@ function applyLiveTrade(t){
   $('#lastPrice').textContent=fmtP(price);
   $('#conn').textContent='BINANCE WS TICK LIVE · '+sym+' · '+new Date(ts).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 }
-function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([...marketWsSymbols])},1500)}
+async function resyncVisibleMarket(gen){
+  try{
+    const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&live=1&sync=${Date.now()}`,{cache:'no-store'});
+    if(!r.ok)throw new Error('REST '+r.status);
+    const d=await r.json();
+    if(gen!==wsGeneration||!Array.isArray(d)||!d.length)return;
+    const x=d[d.length-1];
+    const k={s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false};
+    applyLiveKline(k);
+    // A fresh REST snapshot must not leave a previous connection's tick timestamp looking healthy.
+    lastWsKlineAt=Date.now();
+    $('#conn').textContent='BINANCE WS LIVE · 15M · SYNCED';
+  }catch(e){
+    if(gen===wsGeneration)$('#conn').textContent='BINANCE WS LIVE · REST SYNC RETRY';
+  }
+}
+function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([...marketWsSymbols])},1200)}
 function connectMarketWS(symbols=[]){
   // The visible chart/PnL feed is intentionally one-symbol and persistent.
-  // This avoids reconnect churn from the pair scanner and gives Binance-like tick updates.
+  // Scanner candidates use REST/cache; only the visible symbol receives realtime WS data.
   const clean=[...new Set(symbols.map(s=>String(s||'').toUpperCase()).filter(s=>/^[A-Z0-9]{5,30}$/.test(s)))].slice(0,1);
   if(!clean.includes(symbol))clean.unshift(symbol);
   const key=clean.sort().join(','); if(key===marketWsKey&&ws?.readyState===1)return;
-  marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
-  // Kline keeps the official 15M candle state; aggTrade drives the visible price/PnL tick-by-tick.
+  marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; marketWsEpoch=Date.now(); clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
+  // IMPORTANT: Binance retired the legacy /stream endpoint on 2026-04-23.
+  // Use the current USDⓈ-M MARKET stream endpoint so kline + aggTrade stay live.
   const streams=clean.flatMap(s=>[`${s.toLowerCase()}@kline_15m`,`${s.toLowerCase()}@aggTrade`]).join('/');
-  const url='wss://fstream.binance.com/stream?streams='+streams;
-  $('#conn').textContent='BINANCE WS CONNECTING · '+clean.length+' PAIR · KLINE + TICK'; lastWsKlineAt=0; lastWsTradeAt=0;
+  const url='wss://fstream.binance.com/market/stream?streams='+streams;
+  $('#conn').textContent='BINANCE WS CONNECTING · USDⓈ-M · 15M'; lastWsKlineAt=0; lastWsTradeAt=0;
   try{
     ws=new WebSocket(url);
-    ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=Date.now();lastWsTradeAt=Date.now();$('#conn').textContent='BINANCE WS TICK LIVE · 15M · '+clean.length+' PAIR'};
+    ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=0;lastWsTradeAt=Date.now();$('#conn').textContent='BINANCE WS LIVE · USDⓈ-M · SYNCING';resyncVisibleMarket(gen)};
     ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='aggTrade')applyLiveTrade(payload)}catch{}};
     ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · REST FALLBACK'};
-    ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · REST FALLBACK';scheduleWsReconnect(gen)}};
-    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const activeLive=liveKlinesBySymbol.get(symbol); const ageK=activeLive?.sourceTs?Date.now()-Number(activeLive.sourceTs):Infinity; const ageT=lastWsTradeAt?Date.now()-lastWsTradeAt:Infinity; if(ws?.readyState===1&&ageK>10000&&ageT>10000){$('#conn').textContent='WS STALE · RECONNECTING';try{ws.close()}catch{}}},3000);
+    ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · REST SYNC';scheduleWsReconnect(gen)}};
+    wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const activeLive=liveKlinesBySymbol.get(symbol); const ageK=activeLive?.sourceTs?Date.now()-Number(activeLive.sourceTs):Infinity; const ageT=lastWsTradeAt?Date.now()-lastWsTradeAt:Infinity; if(ws?.readyState===1&&ageK>10000&&ageT>10000){$('#conn').textContent='WS STALE · RESYNCING';resyncVisibleMarket(gen);try{ws.close()}catch{}}},3000);
   }catch(e){$('#conn').textContent='WS ERROR · REST FALLBACK';scheduleWsReconnect(gen)}
 }
 function connectWS(){connectMarketWS([...marketWsSymbols,symbol])}
@@ -350,12 +367,12 @@ async function pollLiveCandle(){
   const live=liveKlinesBySymbol.get(symbol); if(live&&Date.now()-Number(live.sourceTs||0)<5000){if(ws?.readyState===1)return;}
   const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&live=1&_=${Date.now()}`,{cache:'no-store'}); if(!r.ok)throw new Error('REST '+r.status);
   const d=await r.json(); if(!Array.isArray(d)||!d.length)throw new Error('empty'); const x=d[d.length-1]; applyLiveKline({s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false});
-  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST LIVE · WS RETRY';
+  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST SNAPSHOT · WS RETRY';
  }catch(e){if(!ws||ws.readyState!==1)$('#conn').textContent='MARKET DATA ERROR · '+e.message}
  finally{pollBusy=false}
 }
 
-async function switchSymbol(s){if(s===symbol&&candles.length)return;try{drawings.forEach(x=>x.remove?.())}catch{} drawings=[]; tradeMarkers=tradeMarkers.filter(m=>m&&m.symbol===s); clearPositionVisuals(); symbol=s; $('#symbolTitle').textContent=s; lastSwitchAt=Date.now(); await loadCandles(); if(chart)chart.timeScale().fitContent(); renderTradeVisuals(); connectMarketWS([...marketWsSymbols,s]); persist(); log('Pair → '+s+' · WS stream synchronized')}
+async function switchSymbol(s){if(s===symbol&&candles.length)return;try{drawings.forEach(x=>x.remove?.())}catch{} drawings=[]; tradeMarkers=tradeMarkers.filter(m=>m&&m.symbol===s); clearPositionVisuals(); liveKlinesBySymbol.delete(s); latestPriceBySymbol[s]=undefined; symbol=s; $('#symbolTitle').textContent=s; lastSwitchAt=Date.now(); await loadCandles(); if(chart)chart.timeScale().fitContent(); renderTradeVisuals(); connectMarketWS([...marketWsSymbols,s]); persist(); log('Pair → '+s+' · WS stream synchronized')}
 function drawSR(){drawings.forEach(x=>x.remove?.());drawings=[];let {support,resistance}=sr();for(const v of [support,resistance]){let l=chart.addLineSeries({color:'#4de1ff77',lineWidth:1,lineStyle:2,lastValueVisible:true,priceLineVisible:false});l.setData(candles.slice(-120).map(c=>({time:c.time,value:v})));drawings.push(l)}}
 function drawClick(ev){if(tool==='none')return;let r=$('#chart').getBoundingClientRect(),x=ev.clientX-r.left,t=chart.timeScale().coordinateToTime(x),p=series.coordinateToPrice(ev.clientY-r.top);if(!t||p==null)return;drawings.push({x,p});if(drawings.length<2)return;let a=drawings.at(-2),b=drawings.at(-1),t1=chart.timeScale().coordinateToTime(a.x),t2=chart.timeScale().coordinateToTime(b.x);let l=chart.addLineSeries({color:tool==='fib'?'#f4c44f':'#63a8ff',lineWidth:2});l.setData([{time:t1,value:a.p},{time:t2,value:b.p}]);drawings.push(l);if(tool==='fib'){[.236,.382,.5,.618,.786].forEach(r=>{let f=chart.addLineSeries({color:'#f4c44f55',lineWidth:1,lineStyle:2});f.setData([{time:t1,value:a.p+(b.p-a.p)*r},{time:t2,value:a.p+(b.p-a.p)*r}]);drawings.push(f)})}tool='none';$$('[data-tool]').forEach(x=>x.classList.remove('active'));$('[data-tool="none"]').classList.add('active')}
 function currentPaperPnl(price){if(!hasValidPaperPosition())return 0;const p=paperPos,dir=p.side==='BUY'?1:-1,raw=(price-p.entry)*p.qty*dir,fee=(Math.abs(p.entry*p.qty)+Math.abs(price*p.qty))*Number($('#fee').value)/100,slip=Math.abs(price*p.qty)*Number($('#slippage').value)/100;return (raw-fee-slip)*IDR}
