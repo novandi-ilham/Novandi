@@ -61,6 +61,17 @@ export default async function handler(req,res){
       if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'});
       return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}}));
     }
+    if(path==='/api/market/diagnostic'&&req.method==='GET'){
+      const started=Date.now();
+      try{
+        const clock=await marketBinance('/fapi/v1/time');
+        return res.status(200).json({ok:true,source:'VERCEL_SERVER',marketBase:MARKET_BASE,binanceHttp:200,serverTime:Number(clock.serverTime)||null,latencyMs:Date.now()-started});
+      }catch(e){
+        const msg=String(e?.message||e);
+        const m=msg.match(/Binance HTTP (\d+)/);
+        return res.status(200).json({ok:false,source:'VERCEL_SERVER',marketBase:MARKET_BASE,binanceHttp:m?Number(m[1]):null,error:msg,latencyMs:Date.now()-started});
+      }
+    }
     if(path==='/api/market/realtime'&&req.method==='GET'){
       const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase();
       if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'});
