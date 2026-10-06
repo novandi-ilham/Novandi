@@ -273,7 +273,7 @@ async function loadCandles(){
    if(!Array.isArray(d)||!d.length)throw new Error('Klines kosong dari Binance');
    const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
    if(next.length<30)throw new Error('Candle 15M kurang dari 30 bar');
-   candles=next.slice(-150); redraw(); $('#conn').textContent='REST HISTORY LIVE · 15M'; return;
+   candles=next.slice(-150); redraw(); $('#conn').textContent='REST HISTORY LIVE · 15M · PROD'; return;
   }catch(e){last=e.message;await new Promise(r=>setTimeout(r,600*attempt));}
  }
  throw new Error(last);
@@ -283,6 +283,7 @@ function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
   const c={symbol:sym,time:Math.floor(Number(k.t)/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v,closed:!!k.x,sourceTs:Date.now()};
   if(![c.time,c.open,c.high,c.low,c.close,c.volume].every(Number.isFinite))return;
+  if(sym===symbol&&candles.length){ const last=candles.at(-1); if(c.time>last.time+900){ resyncVisibleMarket(wsGeneration); return; } }
   liveKlinesBySymbol.set(sym,c); latestPriceBySymbol[sym]=c.close; lastWsKlineAt=Date.now();
   const cached=scanKlineCache.get(sym); if(cached?.data?.length){const a=cached.data.slice(),i=a.findIndex(x=>x.time===c.time);if(i>=0)a[i]={...a[i],...c};else if(c.time>a.at(-1).time)a.push(c);scanKlineCache.set(sym,{...cached,data:a.slice(-150)})}
   if(sym!==symbol)return;
@@ -291,19 +292,15 @@ function applyLiveKline(k){
   if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
   if(hasValidPaperPosition()&&paperPos.symbol===sym&&enforceLiveRisk(c.close,'KLINE'))return;
   const ev=ema(candles.map(x=>x.close)).at(-1); if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
-  updateUI(); renderTradeVisuals(); $('#conn').textContent='BINANCE WS LIVE · 15M · '+sym;
+  updateUI(); renderTradeVisuals(); $('#conn').textContent='BINANCE WS LIVE · 15M PROD · '+sym;
 }
 function applyLiveTicker(t){
   const sym=String(t.s||'').toUpperCase(), price=Number(t.c);
   if(!sym||!Number.isFinite(price)||price<=0)return;
+  // Ticker is ONLY the latest-traded-price feed. Never mutate OHLC from ticker.
+  // Binance's kline stream is the authoritative source for the visible 15M candle.
   latestPriceBySymbol[sym]=price;
   if(sym!==symbol)return;
-  const live=liveKlinesBySymbol.get(sym);
-  if(live){ live.close=price; live.high=Math.max(Number(live.high),price); live.low=Math.min(Number(live.low),price); live.sourceTs=Date.now(); liveKlinesBySymbol.set(sym,live);
-    const i=candles.findIndex(x=>x.time===live.time);
-    if(i>=0)candles[i]={...candles[i],open:live.open,high:live.high,low:live.low,close:live.close,volume:live.volume};
-    if(series)series.update({time:live.time,open:live.open,high:live.high,low:live.low,close:live.close});
-  }
   if(hasValidPaperPosition()&&paperPos.symbol===sym)updatePosition(price);
   $('#lastPrice').textContent=fmtP(price);
   if(sym===symbol)$('#conn').textContent='BINANCE WS TICKER LIVE · USDⓈ-M · '+sym;
@@ -315,7 +312,11 @@ function applyRestSnapshot(snap){
     applyLiveKline(k);
   }
   const price=Number(snap.price);
-  if(Number.isFinite(price)&&price>0)applyLiveTicker({s:symbol,c:price});
+  if(Number.isFinite(price)&&price>0){
+    latestPriceBySymbol[symbol]=price;
+    if(hasValidPaperPosition()&&paperPos.symbol===symbol)updatePosition(price);
+    $('#lastPrice').textContent=fmtP(price);
+  }
 }
 async function readJsonResponse(r,label){
   const text=await r.text();
@@ -332,7 +333,7 @@ async function pollLiveSnapshot(){
     const r=await fetch(`/api/market/snapshot?symbol=${encodeURIComponent(symbol)}&_=${Date.now()}`,{cache:'no-store',headers:{'Accept':'application/json'}});
     const snap=await readJsonResponse(r,'Snapshot API');
     applyRestSnapshot(snap);
-    if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST LIVE · USDⓈ-M · '+symbol;
+    if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST LIVE · USDⓈ-M PROD · '+symbol;
   }catch(e){ if(!ws||ws.readyState!==1)$('#conn').textContent='MARKET DATA ERROR · '+e.message; }
 }
 
@@ -340,28 +341,12 @@ function applyLiveTrade(t){
   const sym=String(t.s||'').toUpperCase();
   const price=Number(t.p), qty=Number(t.q), ts=Number(t.T||Date.now());
   if(!sym||!Number.isFinite(price)||price<=0)return;
-  latestPriceBySymbol[sym]=price; lastWsTradeAt=Date.now();
-  let live=liveKlinesBySymbol.get(sym);
-  // A trade can arrive before the next kline update. Bootstrap the live candle
-  // from the already-loaded REST candle so the visible chart never waits for kline cadence.
-  if(!live && sym===symbol && candles.length){
-    const base=candles.at(-1);
-    if(base){ live={symbol:sym,time:base.time,open:base.open,high:base.high,low:base.low,close:price,volume:base.volume,closed:false,sourceTs:Date.now()}; liveKlinesBySymbol.set(sym,live); }
-  }
-  if(live){
-    live.close=price; live.high=Math.max(Number(live.high),price); live.low=Math.min(Number(live.low),price); live.sourceTs=Date.now();
-    // Keep candle volume authoritative from the kline stream; trade stream is for tick price/H/L.
-    liveKlinesBySymbol.set(sym,live);
-    const cached=scanKlineCache.get(sym); if(cached?.data?.length){const a=cached.data.slice(),i=a.findIndex(x=>x.time===live.time);if(i>=0)a[i]={...a[i],close:live.close,high:live.high,low:live.low,volume:live.volume,sourceTs:live.sourceTs};scanKlineCache.set(sym,{...cached,data:a.slice(-150)})}
-  }
+  lastWsTradeAt=Date.now();
+  // aggTrade is ONLY a realtime last-price/PnL feed. Do not construct or mutate
+  // OHLC candles from individual trades: doing so can desynchronize the chart from
+  // Binance's official 15M kline. The kline stream owns candle OHLCV.
+  latestPriceBySymbol[sym]=price;
   if(sym!==symbol)return;
-  const c=liveKlinesBySymbol.get(sym); if(!c)return;
-  const i=candles.findIndex(x=>x.time===c.time);
-  if(i>=0)candles[i]={...candles[i],open:c.open,high:c.high,low:c.low,close:c.close,volume:c.volume};
-  else candles.push({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close,volume:c.volume});
-  if(candles.length>150)candles=candles.slice(-150);
-  if(series)series.update({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close});
-  const ev=ema(candles.map(x=>x.close)).at(-1); if(Number.isFinite(ev)&&emaSeries)emaSeries.update({time:c.time,value:ev});
   // Tick-level position/risk update: no 1-second polling delay.
   if(hasValidPaperPosition()&&paperPos.symbol===sym)updatePosition(price);
   updateUI(); renderTradeVisuals();
@@ -374,10 +359,19 @@ async function resyncVisibleMarket(gen){
     if(!r.ok)throw new Error('REST '+r.status);
     const d=await r.json();
     if(gen!==wsGeneration||!Array.isArray(d)||!d.length)return;
+    // Full-history resync is used whenever a candle gap is detected. This prevents
+    // recursive single-candle updates and guarantees the chart starts from Binance's
+    // exact 15M OHLCV sequence.
+    const next=d.map(x=>({time:Math.floor(Number(x[0])/1000),open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]}))
+      .filter(x=>[x.time,x.open,x.high,x.low,x.close,x.volume].every(Number.isFinite));
+    if(next.length<30)throw new Error('REST history kurang dari 30 candle');
+    candles=next.slice(-150);
     const x=d[d.length-1];
-    const k={s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false};
-    applyLiveKline(k);
-    // A fresh REST snapshot must not leave a previous connection's tick timestamp looking healthy.
+    const c={symbol, time:Math.floor(Number(x[0])/1000), open:+x[1], high:+x[2], low:+x[3], close:+x[4], volume:+x[5], closed:false, sourceTs:Date.now()};
+    liveKlinesBySymbol.set(symbol,c);
+    latestPriceBySymbol[symbol]=c.close;
+    redraw();
+    if(hasValidPaperPosition()&&paperPos.symbol===symbol)enforceLiveRisk(c.close,'RESYNC');
     lastWsKlineAt=Date.now();
     $('#conn').textContent='BINANCE WS LIVE · 15M · SYNCED';
   }catch(e){
@@ -414,7 +408,7 @@ async function pollLiveCandle(){
   const live=liveKlinesBySymbol.get(symbol); if(live&&Date.now()-Number(live.sourceTs||0)<5000){if(ws?.readyState===1)return;}
   const r=await fetch(`/api/market/klines?symbol=${encodeURIComponent(symbol)}&live=1&_=${Date.now()}`,{cache:'no-store'}); if(!r.ok)throw new Error('REST '+r.status);
   const d=await r.json(); if(!Array.isArray(d)||!d.length)throw new Error('empty'); const x=d[d.length-1]; applyLiveKline({s:symbol,t:x[0],o:x[1],h:x[2],l:x[3],c:x[4],v:x[5],x:false});
-  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST SNAPSHOT · WS RETRY';
+  if(!ws||ws.readyState!==1)$('#conn').textContent='BINANCE REST LIVE · USDⓈ-M PROD · WS RETRY';
  }catch(e){if(!ws||ws.readyState!==1)$('#conn').textContent='MARKET DATA ERROR · '+e.message}
  finally{pollBusy=false}
 }
