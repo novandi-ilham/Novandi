@@ -10,7 +10,7 @@
 <main class="wrap">
 <aside class="left">
 <section class="panel"><div class="phead">PAIR SCANNER <span class="pill" id="scanState">READY</span></div><div class="pbody grid2"><button class="btn" id="refreshScan">Refresh</button><button class="btn active" id="autoToggle">AUTO ON</button></div><div class="symbols" id="symbols"></div></section>
-<section class="panel section"><div class="phead">ACCOUNT · IDR</div><div class="pbody"><div class="kv"><span>Status</span><b id="acctStatus">PAPER</b></div><div class="kv"><span>Wallet</span><b id="balance">Rp 10.000.000</b></div><div class="kv"><span>Available</span><b id="available">Rp 10.000.000</b></div><div class="kv"><span>Unrealized</span><b id="unrealized">Rp 0</b></div><div class="kv"><span>Paper PnL</span><b id="paperPnl">Rp 0</b></div><div class="muted" style="font-size:11px;margin-top:6px">Wallet berubah setelah posisi ditutup; PnL berjalan tampil di Unrealized.</div><button class="btn" style="width:100%;margin-top:8px" id="accountBtn">Sync Binance Account</button><button class="btn" style="width:100%;margin-top:6px" id="resetPaperBtn">Reset Paper Account · Rp 10.000.000</button></div></section>
+<section class="panel section"><div class="phead">ACCOUNT · IDR</div><div class="pbody"><div class="kv"><span>Status</span><b id="acctStatus">PAPER</b></div><div class="kv"><span>Wallet</span><b id="balance">Rp 10.000.000</b></div><div class="kv"><span>Available</span><b id="available">Rp 10.000.000</b></div><div class="kv"><span>Unrealized</span><b id="unrealized">Rp 0</b></div><div class="kv"><span>Paper PnL</span><b id="paperPnl">Rp 0</b></div><div class="muted" style="font-size:11px;margin-top:6px">Wallet berubah setelah posisi ditutup; PnL berjalan tampil di Unrealized.</div><button class="btn" style="width:100%;margin-top:8px" id="accountBtn">Sync Binance Account</button></div></section>
 <section class="panel section"><div class="phead">RISK GUARD</div><div class="pbody form"><label>Risk / trade %<input id="risk" type="number" value="0.35" min="0.1" max="1"></label><label>Daily loss limit %<input id="dailyLoss" type="number" value="3" min="0.5" max="10"></label><label>Max positions<input id="maxPos" type="number" value="1" min="1" max="5"></label><label>Cooldown losses<input id="cooldownLosses" type="number" value="3" min="1" max="10"></label><label>Fee %<input id="fee" type="number" value="0.04" step="0.01"></label><label>Slippage %<input id="slippage" type="number" value="0.03" step="0.01"></label><label>Max floating loss %<input id="maxFloatLoss" type="number" value="0.2" min="0.1" step="0.1"></label><label>Profit giveback %<input id="profitGiveback" type="number" value="10" min="1" max="100" step="1"></label><label style="display:flex;align-items:center;gap:8px"><input id="autoRotate" type="checkbox" checked> Auto close & switch saat peluang melemah</label><label>Loss moves before close<input id="negativeScans" type="number" value="3" min="2" max="3" step="1"></label><div class="kv"><span>Daily loss</span><b id="dailyLossOut">Rp 0</b></div><div class="kv"><span>Consecutive loss</span><b id="lossStreak">0</b></div></div></section>
 </aside>
 <main>
@@ -123,14 +123,8 @@ function addTradeMarker(type,p){
   if(tradeMarkers.length>50)tradeMarkers=tradeMarkers.slice(-50);
   renderTradeVisuals();
 }
-function persist(){try{localStorage.setItem('ilhamPaperStateV62',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||0.2,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||3,autoRotate:$('#autoRotate').checked}))}catch{}}
-function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV62')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory.filter(t=>t&&Number.isFinite(Number(t.pnl))&&Number.isFinite(Number(t.time))&&typeof t.symbol==='string'&&['BUY','SELL'].includes(t.side)).slice(-100):[];
-// Reject legacy/corrupt paper ledgers: a single trade larger than 5% of the starting
-// paper equity is not credible for this risk-sized simulator. Rebuild net PnL from
-// validated closed trades rather than trusting a stale aggregate stored in localStorage.
-const ledgerLooksCorrupt=tradeHistory.some(t=>Math.abs(Number(t.pnl))>10000000*0.05);
-if(ledgerLooksCorrupt){tradeHistory=[];paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};paperPos=null;tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};}
-else {paperPnl=tradeHistory.reduce((sum,t)=>sum+Number(t.pnl),0);dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats={wins:tradeHistory.filter(t=>Number(t.pnl)>0).length,losses:tradeHistory.filter(t=>Number(t.pnl)<0).length};}tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||0.2;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||3;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
+function persist(){try{localStorage.setItem('ilhamPaperStateV58',JSON.stringify({date:new Date().toISOString().slice(0,10),symbol,paperPos,paperPnl,dailyPnl,lossStreak,tradeStats,tradeHistory,tradeMarkers,symbolLosses,symbolCooldowns,symbolLossStreaks,margin:+$('#margin').value||DEFAULT_PAPER_MARGIN_IDR,leverage:+$('#lev').value||DEFAULT_LEVERAGE,maxFloatLoss:+$('#maxFloatLoss').value||0.2,profitGiveback:+$('#profitGiveback').value||10,negativeScans:+$('#negativeScans').value||3,autoRotate:$('#autoRotate').checked}))}catch{}}
+function restore(){try{let x=JSON.parse(localStorage.getItem('ilhamPaperStateV58')||'null');if(!x||x.date!==new Date().toISOString().slice(0,10))return;symbol=x.symbol||symbol;paperPos=x.paperPos||null;paperPnl=+x.paperPnl||0;dailyPnl=+x.dailyPnl||0;lossStreak=+x.lossStreak||0;tradeStats=x.tradeStats||tradeStats;tradeHistory=Array.isArray(x.tradeHistory)?x.tradeHistory:[];tradeMarkers=Array.isArray(x.tradeMarkers)?x.tradeMarkers.filter(m=>m&&m.symbol):[];symbolLosses=x.symbolLosses||{};symbolCooldowns=x.symbolCooldowns||{};symbolLossStreaks=x.symbolLossStreaks||{};if($('#margin'))$('#margin').value=Number(x.margin)||DEFAULT_PAPER_MARGIN_IDR;if($('#lev'))$('#lev').value=Number(x.leverage)||DEFAULT_LEVERAGE;if($('#maxFloatLoss'))$('#maxFloatLoss').value=Number(x.maxFloatLoss)||0.2;if($('#profitGiveback'))$('#profitGiveback').value=Number(x.profitGiveback)||10;if($('#negativeScans'))$('#negativeScans').value=Number(x.negativeScans)||3;if($('#autoRotate'))$('#autoRotate').checked=x.autoRotate!==false;if(!hasValidPaperPosition())paperPos=null;updatePaperAccount(0);renderPaperOrderPreview();$('#dailyLossOut').textContent=fmtIDR(dailyPnl);$('#lossStreak').textContent=lossStreak}catch{}}
 function log(s){const e=document.createElement('div');e.className='log';e.textContent=new Date().toLocaleTimeString('id-ID')+' · '+s;$('#logs').prepend(e)}
 function ema(vals,p=20){let k=2/(p+1),e=vals[0],out=[];vals.forEach((v,i)=>{e=i? v*k+e*(1-k):v;out.push(e)});return out}
 function atr(cs=candles){if(cs.length<20)return 0;let a=[];for(let i=1;i<cs.length;i++)a.push(Math.max(cs[i].high-cs[i].low,Math.abs(cs[i].high-cs[i-1].close),Math.abs(cs[i].low-cs[i-1].close)));return a.slice(-14).reduce((x,y)=>x+y,0)/Math.min(14,a.length)}
@@ -266,7 +260,7 @@ async function loadCandles(){
  }
  throw new Error(last);
 }
-let wsReconnectTimer=null, wsWatchdogTimer=null, wsRefreshTimer=null, wsGeneration=0, lastWsKlineAt=0, lastWsTradeAt=0, marketWsSymbols=new Set(), marketWsKey='';
+let wsReconnectTimer=null, wsWatchdogTimer=null, wsGeneration=0, lastWsKlineAt=0, lastWsTradeAt=0, marketWsSymbols=new Set(), marketWsKey='';
 function applyLiveKline(k){
   const sym=String(k.s||symbol).toUpperCase();
   const c={symbol:sym,time:Math.floor(Number(k.t)/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v,closed:!!k.x,sourceTs:Date.now()};
@@ -285,16 +279,10 @@ function applyLiveTrade(t){
   const price=Number(t.p), qty=Number(t.q), ts=Number(t.T||Date.now());
   if(!sym||!Number.isFinite(price)||price<=0)return;
   latestPriceBySymbol[sym]=price; lastWsTradeAt=Date.now();
-  let live=liveKlinesBySymbol.get(sym);
-  // A trade can arrive before the next kline update. Bootstrap the live candle
-  // from the already-loaded REST candle so the visible chart never waits for kline cadence.
-  if(!live && sym===symbol && candles.length){
-    const base=candles.at(-1);
-    if(base){ live={symbol:sym,time:base.time,open:base.open,high:base.high,low:base.low,close:price,volume:base.volume,closed:false,sourceTs:Date.now()}; liveKlinesBySymbol.set(sym,live); }
-  }
+  const live=liveKlinesBySymbol.get(sym);
   if(live){
     live.close=price; live.high=Math.max(Number(live.high),price); live.low=Math.min(Number(live.low),price); live.sourceTs=Date.now();
-    // Keep candle volume authoritative from the kline stream; trade stream is for tick price/H/L.
+    // Keep candle volume authoritative from kline stream; trade stream is for tick price/H/L.
     liveKlinesBySymbol.set(sym,live);
     const cached=scanKlineCache.get(sym); if(cached?.data?.length){const a=cached.data.slice(),i=a.findIndex(x=>x.time===live.time);if(i>=0)a[i]={...a[i],close:live.close,high:live.high,low:live.low,volume:live.volume,sourceTs:live.sourceTs};scanKlineCache.set(sym,{...cached,data:a.slice(-150)})}
   }
@@ -314,21 +302,19 @@ function applyLiveTrade(t){
 }
 function scheduleWsReconnect(gen){clearTimeout(wsReconnectTimer);wsReconnectTimer=setTimeout(()=>{if(gen===wsGeneration)connectMarketWS([...marketWsSymbols])},1500)}
 function connectMarketWS(symbols=[]){
-  // The visible chart/PnL feed is intentionally one-symbol and persistent.
-  // This avoids reconnect churn from the pair scanner and gives Binance-like tick updates.
-  const clean=[...new Set(symbols.map(s=>String(s||'').toUpperCase()).filter(s=>/^[A-Z0-9]{5,30}$/.test(s)))].slice(0,1);
+  const clean=[...new Set(symbols.map(s=>String(s||'').toUpperCase()).filter(s=>/^[A-Z0-9]{5,30}$/.test(s)))].slice(0,HUNTER.candidateCount);
   if(!clean.includes(symbol))clean.unshift(symbol);
   const key=clean.sort().join(','); if(key===marketWsKey&&ws?.readyState===1)return;
-  marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; clearTimeout(wsReconnectTimer); clearTimeout(wsRefreshTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
+  marketWsSymbols=new Set(clean); marketWsKey=key; const gen=++wsGeneration; clearTimeout(wsReconnectTimer); clearInterval(wsWatchdogTimer); try{ws?.close()}catch{}
   // Kline keeps the official 15M candle state; aggTrade drives the visible price/PnL tick-by-tick.
   const streams=clean.flatMap(s=>[`${s.toLowerCase()}@kline_15m`,`${s.toLowerCase()}@aggTrade`]).join('/');
-  const url='wss://fstream.binance.com/stream?streams='+streams;
+  const url='wss://fstream.binance.com/market/stream?streams='+streams;
   $('#conn').textContent='BINANCE WS CONNECTING · '+clean.length+' PAIR · KLINE + TICK'; lastWsKlineAt=0; lastWsTradeAt=0;
   try{
     ws=new WebSocket(url);
     ws.onopen=()=>{if(gen!==wsGeneration)return;lastWsKlineAt=Date.now();lastWsTradeAt=Date.now();$('#conn').textContent='BINANCE WS TICK LIVE · 15M · '+clean.length+' PAIR'};
     ws.onmessage=ev=>{if(gen!==wsGeneration)return;try{const m=JSON.parse(ev.data),payload=m.data||m;if(payload.e==='kline'&&payload.k)applyLiveKline(payload.k);else if(payload.e==='aggTrade')applyLiveTrade(payload)}catch{}};
-    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='BINANCE WS ERROR · REST FALLBACK'};
+    ws.onerror=()=>{if(gen===wsGeneration)$('#conn').textContent='WS ERROR · REST HISTORY READY'};
     ws.onclose=()=>{if(gen===wsGeneration){clearInterval(wsWatchdogTimer);$('#conn').textContent='WS RECONNECTING · REST FALLBACK';scheduleWsReconnect(gen)}};
     wsWatchdogTimer=setInterval(()=>{if(gen!==wsGeneration)return;const activeLive=liveKlinesBySymbol.get(symbol); const ageK=activeLive?.sourceTs?Date.now()-Number(activeLive.sourceTs):Infinity; const ageT=lastWsTradeAt?Date.now()-lastWsTradeAt:Infinity; if(ws?.readyState===1&&ageK>10000&&ageT>10000){$('#conn').textContent='WS STALE · RECONNECTING';try{ws.close()}catch{}}},3000);
   }catch(e){$('#conn').textContent='WS ERROR · REST FALLBACK';scheduleWsReconnect(gen)}
@@ -385,9 +371,7 @@ async function scan(){
   const pool=[...movers.slice(0,60),...volume.slice(0,60),...gainers.slice(0,40),...losers.slice(0,40)].filter(x=>x&&typeof x.symbol==='string');
   const universe=[...new Map(pool.map(x=>[x.symbol,x])).values()].slice(0,HUNTER.candidateCount);
   if(!universe.length)throw new Error('Universe pair kosong');
-  // Keep the market WebSocket dedicated to the currently displayed pair.
-  // Scanner candidates use REST/cache; reconnecting 48+ streams every scan caused chart gaps.
-  if(!ws||ws.readyState!==1||marketWsKey!==String(symbol).toUpperCase()) connectMarketWS([symbol]);
+  connectMarketWS(universe.map(x=>x.symbol));
   $('#symbols').innerHTML=universe.map(x=>{
     const ch=Number(x.priceChangePercent)||0,vol=Number(x.quoteVolume)||0;
     return `<div class="sym ${x.symbol===symbol?'active':''}" data-s="${x.symbol}"><div><b>${x.symbol}</b><div class="muted">Vol ${(vol/1e6).toFixed(1)}M</div></div><b class="${ch>=0?'up':'down'}">${ch>=0?'+':''}${ch.toFixed(2)}%</b></div>`;
@@ -437,12 +421,8 @@ async function scan(){
     lossCut=Number(paperPos.adverseMoves||0)>=negLimit&&currentPnl<0;
   }
   const materiallyBetter=!!(best&&best.symbol!==activeSymbol&&best.profitSignal&&bestOpp>currentOpp+HUNTER.switchAdvantage);
-  // Do NOT rotate merely because PnL is a few rupiah negative from entry fees/slippage.
-  // That old rule caused a loss cascade: enter -> instant fee loss -> rotate -> fee loss again.
-  const entryCostBuffer=active&&paperPos ? Math.max(1,Math.abs(Number(paperPos.entry)*Number(paperPos.qty))*IDR*((Math.max(0,Number($('#fee').value)||0)/100*2)+(Math.max(0,Number($('#slippage').value)||0)/100))) : 0;
-  const meaningfulLoss=active&&currentPnl< -Math.max(entryCostBuffer,accountEquity*0.0005);
   const canEnter=!active&&!!best;
-  const canRotate=active&&best&&best.symbol!==activeSymbol&&((repeatedLoss&&meaningfulLoss&&best.entryReady)||(meaningfulLoss&&materiallyBetter&&(!currentPO.signal||bestOpp>=currentOpp+HUNTER.switchAdvantage)));
+  const canRotate=active&&best&&best.symbol!==activeSymbol&&((repeatedLoss&&best.entryReady)||(currentPnl<0&&materiallyBetter&&(!currentPO.signal||bestOpp>=currentOpp+HUNTER.switchAdvantage)));
   if(active&&lossCut&&hasValidPaperPosition()){
     const mark=Number.isFinite(Number(latestPriceBySymbol[paperPos.symbol]))?Number(latestPriceBySymbol[paperPos.symbol]):(current?.c?.close||paperPos.entry);
     const livePnl=currentPaperPnl(mark);
@@ -598,6 +578,5 @@ async function account(){if(mode==='paper'){updatePaperAccount(hasValidPaperPosi
 function setMode(){mode=$('#orderMode').value;$('#mode').textContent=mode.toUpperCase()+' · 15M';$('#liveWarning').className=mode==='live'?'dangerbox':mode==='testnet'?'warning':'goodbox';$('#liveWarning').textContent=mode==='live'?'LIVE AKTIF hanya jika server ALLOW_LIVE_TRADING=true.':mode==='testnet'?'TESTNET: gunakan API Testnet, bukan API production.':'PAPER: tidak ada order sungguhan.';account()}
 function runBacktest(){let n=Math.min(Number($('#btLimit').value),candles.length-25),risk=Number($('#btRisk').value),rr=Number($('#btRR').value),start=candles.length-n,equity=0,peak=0,maxDD=0,wins=0,losses=0,net=0,worst=0,streak=0,best=-Infinity;for(let i=start+20;i<candles.length-1;i++){let sub=candles.slice(0,i+1),old=candles; candles=sub;let a=analyze();candles=old;if(!a)continue;let signal=$('#btStrategy').value==='reversal'?(a.wick===1?'LONG':a.wick===-1?'SHORT':null):a.bias==='LONG'?'LONG':a.bias==='SHORT'?'SHORT':null;if(!signal||!a.allowed)continue;let entry=candles[i].close,slPct=Number($('#slPct').value)/100,sl=signal==='LONG'?entry*(1-slPct):entry*(1+slPct),tp=signal==='LONG'?entry*(1+slPct*rr):entry*(1-slPct*rr),out=null;for(let j=i+1;j<candles.length;j++){let c=candles[j];if(signal==='LONG'){if(c.low<=sl){out=-1;break}if(c.high>=tp){out=rr;break}}else{if(c.high>=sl){out=-1;break}if(c.low<=tp){out=rr;break}}}if(out===null)continue;net+=out;equity+=out*risk;best=Math.max(best,out);if(out>0){wins++;streak=0}else{losses++;streak++;worst=Math.max(worst,streak)}peak=Math.max(peak,equity);maxDD=Math.max(maxDD,peak-equity)}let trades=wins+losses,pf=losses?wins*rr/losses:Infinity;$('#btTrades').textContent=trades;$('#btWin').textContent=trades?(wins/trades*100).toFixed(1)+'%':'—';$('#btPF').textContent=Number.isFinite(pf)?pf.toFixed(2):'∞';$('#btDD').textContent=maxDD.toFixed(2)+'%';$('#btNet').textContent=net.toFixed(2)+'R';$('#btStreak').textContent=worst;$('#btBest').textContent=best===-Infinity?'—':best.toFixed(2)+'R';$('#btSummary').textContent=trades?`Hasil simulasi 15M: ${trades} trade, ${wins} win, ${losses} loss. Consecutive loss terburuk ${worst}. Gunakan hasil ini untuk mengukur robustness, bukan jaminan hasil masa depan.`:'Tidak ada setup valid pada periode tersebut.';log('Backtest selesai: '+trades+' trades')}
 $$('[data-tool]').forEach(b=>b.onclick=()=>{$$('[data-tool]').forEach(x=>x.classList.remove('active'));b.classList.add('active');tool=b.dataset.tool});$('#srBtn').onclick=()=>{srActive=!srActive;$('#srBtn').classList.toggle('active',srActive);if(srActive)drawSR();else{drawings.forEach(x=>x.remove?.());drawings=[]}};$('#clearDraw').onclick=()=>{drawings.forEach(x=>x.remove?.());drawings=[]};$('#buyBtn').onclick=()=>submitOrder('BUY');$('#sellBtn').onclick=()=>submitOrder('SELL');$('#closeBtn').onclick=closePosition;$('#beBtn').onclick=()=>{if(paperPos){paperPos.sl=paperPos.entry*(paperPos.side==='BUY'?1.0002:.9998);paperPos.be=true;renderPosition();log('Manual SL Plus / BE')}};$('#partialBtn').onclick=()=>{if(paperPos&&!paperPos.partial){paperPos.qty*=.5;paperPos.partial=true;log('Partial TP: 50% size dikunci')}};$('#trailBtn').onclick=()=>{if(paperPos){paperPos.trail=!paperPos.trail;log('Trailing '+(paperPos.trail?'ON':'OFF'))}};$('#orderMode').onchange=setMode;['margin','lev','risk','slPct','rr','maxFloatLoss','profitGiveback','negativeScans'].forEach(id=>{const el=$('#'+id);if(el){el.addEventListener('input',()=>{renderPaperOrderPreview();persist();});el.addEventListener('change',()=>{renderPaperOrderPreview();persist();});}});$('#accountBtn').onclick=account;$('#refreshScan').onclick=scan;$('#autoToggle').onclick=()=>{auto=!auto;$('#autoToggle').textContent=auto?'AUTO ON':'AUTO OFF'};$('#killBtn').onclick=()=>{killed=!killed;$('#killBtn').textContent='KILL SWITCH: '+(killed?'ON':'OFF');$('#killBtn').classList.toggle('active',killed);if(killed)log('KILL SWITCH AKTIF — auto entry diblokir')};$('#runBacktest').onclick=runBacktest;
-$('#resetPaperBtn')?.addEventListener('click',()=>{if(!confirm('Reset akun paper ke Rp 10.000.000? Posisi dan riwayat paper akan dihapus.'))return;paperPos=null;paperPnl=0;dailyPnl=0;lossStreak=0;tradeStats={wins:0,losses:0};tradeHistory=[];tradeMarkers=[];symbolLosses={};symbolCooldowns={};symbolLossStreaks={};accountEquity=10000000;killed=false;auto=true;localStorage.removeItem('ilhamPaperStateV58');localStorage.removeItem('ilhamPaperStateV62');clearPositionVisuals();persist();renderPosition();updatePaperAccount(0);$('#dailyLossOut').textContent=fmtIDR(0);$('#lossStreak').textContent='0';log('PAPER ACCOUNT RESET · Rp 10.000.000 · ledger bersih');});
 (async()=>{initChart();restore();renderPaperOrderPreview();$('#symbolTitle').textContent=symbol;try{await loadCandles();connectWS();renderPosition();await scan();log('System ready · 15M only · BINANCE WS shared feed · PAPER default')}catch(e){log('Init error: '+e.message)}setInterval(updateUI,1000);setInterval(pollLiveCandle,1000);setInterval(scan,HUNTER.scanMs)})();
 </script></body></html>
