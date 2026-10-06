@@ -17,3 +17,5 @@ This is a risk-control mechanism, not a guarantee of profit.
 
 
 V67 Market Sync: production USDⓈ-M market data is hard-locked to fapi.binance.com; snapshot endpoint combines 15m kline + latest price for REST fallback/resync.
+
+V69: production USDⓈ-M market data only; no Testnet fallback.
