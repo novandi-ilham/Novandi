@@ -14,3 +14,6 @@ V56 keeps the 15M-only Paper Engine and adds a strict pair-loss movement rule:
 - Paper storage is versioned to V56 so old V55 paper state is not silently reused.
 
 This is a risk-control mechanism, not a guarantee of profit.
+
+
+V67 Market Sync: production USDⓈ-M market data is hard-locked to fapi.binance.com; snapshot endpoint combines 15m kline + latest price for REST fallback/resync.
