@@ -1,11 +1,7 @@
 import crypto from 'crypto';
-import zlib from 'zlib';
 
 const BASE = process.env.BINANCE_BASE_URL || 'https://fapi.binance.com';
-// MARKET DATA IS ALWAYS PRODUCTION USDⓈ-M. Never fall back to BASE/testnet here.
-// Paper/live order routing may use a separate BASE, but the chart/scanner must match
-// the user's Binance BTCUSDT Perp production market.
-const MARKET_BASE = 'https://fapi.binance.com';
+const MARKET_BASE = process.env.BINANCE_MARKET_BASE_URL || 'https://fapi.binance.com';
 const KEY = process.env.BINANCE_API_KEY || '';
 const SECRET = process.env.BINANCE_API_SECRET || '';
 const MAX_RISK_PCT = Math.min(1, Math.max(0.1, Number(process.env.MAX_RISK_PCT || 1)));
@@ -24,68 +20,17 @@ async function binance(path, { method='GET', params={}, signed=false, base=BASE 
   const url=base+path+(qs?`?${qs}`:'');
   const response=await fetch(url,{method,headers:{'X-MBX-APIKEY':KEY}});
   const text=await response.text(); let data; try{data=JSON.parse(text)}catch{data={raw:text}}
-  if(!response.ok) throw new Error(`Binance ${response.status} · ${data?.msg||data?.code||'upstream error'} · ${path}`);
+  if(!response.ok) throw new Error(data?.msg||`Binance HTTP ${response.status}`);
   return data;
 }
 
 async function marketBinance(path, options={}) {
-  // One source of truth. If production market data fails, surface the failure
-  // instead of silently switching to Testnet/stale data.
-  return await binance(path,{...options,base:MARKET_BASE});
-}
-
-
-const VISION_BASE='https://data.binance.vision';
-function isValidDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(String(s||''));}
-function parseZipSingleFile(buf){
-  const b=Buffer.from(buf);
-  let off=0, csv=null;
-  while(off+30<=b.length){
-    const sig=b.readUInt32LE(off);
-    if(sig===0x04034b50){
-      const method=b.readUInt16LE(off+8), csize=b.readUInt32LE(off+18), usize=b.readUInt32LE(off+22), nlen=b.readUInt16LE(off+26), xlen=b.readUInt16LE(off+28);
-      const dataStart=off+30+nlen+xlen, dataEnd=dataStart+csize;
-      if(dataEnd>b.length)throw new Error('ZIP archive truncated');
-      const raw=b.subarray(dataStart,dataEnd);
-      if(method===0)csv=raw;
-      else if(method===8)csv=zlib.inflateRawSync(raw);
-      else throw new Error('ZIP compression method unsupported: '+method);
-      if(usize && csv.length!==usize) throw new Error('ZIP size mismatch');
-      break;
-    }
-    if(sig===0x02014b50||sig===0x06054b50)break;
-    off++;
+  try { return await binance(path,{...options,base:MARKET_BASE}); }
+  catch (first) {
+    if (BASE===MARKET_BASE) throw first;
+    try { return await binance(path,{...options,base:BASE}); }
+    catch { throw first; }
   }
-  if(!csv)throw new Error('ZIP CSV not found');
-  return csv.toString('utf8');
-}
-async function visionDailyKlines(symbol,date){
-  if(!isValidDate(date))throw new Error('date invalid');
-  const url=`${VISION_BASE}/data/futures/um/daily/klines/${encodeURIComponent(symbol)}/15m/${encodeURIComponent(symbol)}-15m-${date}.zip`;
-  const r=await fetch(url,{cache:'no-store'});
-  if(!r.ok)throw new Error(`VISION HTTP ${r.status} · ${date}`);
-  const csv=parseZipSingleFile(await r.arrayBuffer());
-  const rows=[];
-  for(const line of csv.split(/\r?\n/)){
-    const x=line.trim(); if(!x||x.startsWith('open_time'))continue;
-    const c=x.split(','); if(c.length<6)continue;
-    const t=Number(c[0]); const o=Number(c[1]),h=Number(c[2]),l=Number(c[3]),cl=Number(c[4]),v=Number(c[5]);
-    if([t,o,h,l,cl,v].every(Number.isFinite))rows.push([t,String(c[1]),String(c[2]),String(c[3]),String(c[4]),String(c[5]),Number(c[6]||t+899999),String(c[7]||0),Number(c[8]||0),String(c[9]||0),String(c[10]||0),String(c[11]||0)]);
-  }
-  return rows;
-}
-async function visionRecentKlines(symbol,limit=150){
-  const now=new Date();
-  const dates=[];
-  const days=Math.max(1,Math.min(3,Math.ceil(Number(limit||150)/96)+1));
-  for(let i=1;i<=days;i++){
-    const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-i));
-    dates.push(d.toISOString().slice(0,10));
-  }
-  const blocks=await Promise.all(dates.map(async date=>{
-    try{return await visionDailyKlines(symbol,date)}catch(e){if(String(e.message).includes('VISION HTTP 404'))return []; throw e;}
-  }));
-  return blocks.flat().sort((a,b)=>Number(a[0])-Number(b[0])).slice(-limit);
 }
 
 async function readBody(req){
@@ -112,14 +57,9 @@ export default async function handler(req,res){
   headers(res); if(req.method==='OPTIONS') return res.status(204).end();
   try{
     const path=new URL(req.url,'https://vercel.local').pathname;
-    if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,apiVersion:'v75',marketSource:'BINANCE_USDM_PRODUCTION',mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,time:Date.now()});
+    if(path==='/api/health'&&req.method==='GET') return res.status(200).json({ok:true,mode:ALLOW_LIVE?'live-enabled':'paper-only',maxRiskPct:MAX_RISK_PCT,maxNotionalUSDT:MAX_NOTIONAL_USDT,testnet:BASE.includes('testnet'),testnetTrading:ALLOW_TESTNET,tradingEndpointLocked:!BASE.includes('testnet')&&!TRADING_TOKEN,time:Date.now()});
     if(path==='/api/market/ticker'&&req.method==='GET') return res.status(200).json(await marketBinance('/fapi/v1/ticker/24hr'));
-    if(path==='/api/market/price'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v2/ticker/price',{params:{symbol}})); }
-    if(path==='/api/market/klines'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); try{return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}}));}catch(e){const msg=String(e.message||e); if(msg.includes('Binance 451')) return res.status(503).json({error:msg,code:'MARKET_GEO_RESTRICTED',source:'BINANCE_USDM_PRODUCTION'}); throw e;} }
-    if(path==='/api/market/archive'&&req.method==='GET'){ const u=new URL(req.url,'https://vercel.local'); const symbol=String(u.searchParams.get('symbol')||'').toUpperCase(); const date=String(u.searchParams.get('date')||''); if(!/^[A-Z0-9]{5,20}$/.test(symbol)||!isValidDate(date)) return res.status(400).json({error:'symbol/date invalid'}); try{return res.status(200).json(await visionDailyKlines(symbol,date));}catch(e){return res.status(404).json({error:e.message,code:'VISION_ARCHIVE_UNAVAILABLE'});} }
-    if(path==='/api/market/history'&&req.method==='GET'){ const u=new URL(req.url,'https://vercel.local'); const symbol=String(u.searchParams.get('symbol')||'').toUpperCase(); const limit=Math.min(150,Math.max(30,Number(u.searchParams.get('limit')||150))); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); try{const rows=await visionRecentKlines(symbol,limit); if(rows.length<30) return res.status(404).json({error:'VISION archive insufficient',code:'VISION_ARCHIVE_INSUFFICIENT',count:rows.length}); return res.status(200).json({ok:true,source:'BINANCE_VISION_USDM_ARCHIVE',symbol,count:rows.length,rows});}catch(e){return res.status(502).json({error:e.message,code:'VISION_ARCHIVE_FETCH_FAILED'});} }
-    if(path==='/api/market/diagnostic'&&req.method==='GET'){ const u=new URL(req.url,'https://vercel.local'); const symbol=String(u.searchParams.get('symbol')||'BTCUSDT').toUpperCase(); try{const d=await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:2}}); return res.status(200).json({ok:true,source:'BINANCE_USDM_PRODUCTION_FAPI',symbol,count:d.length,lastOpenTime:d.at(-1)?.[0]||null,lastClose:d.at(-1)?.[4]||null});}catch(e){return res.status(200).json({ok:false,source:'BINANCE_USDM_PRODUCTION_FAPI',symbol,error:e.message,geoRestricted:String(e.message||'').includes('451')});} }
-    if(path==='/api/market/snapshot'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); try{const price=await marketBinance('/fapi/v2/ticker/price',{params:{symbol}}); return res.status(200).json({source:'BINANCE_USDM_PRODUCTION_FAPI',marketBase:MARKET_BASE,serverTime:Date.now(),symbol,price:Number(price?.price)});}catch(e){if(String(e.message||e).includes('Binance 451')) return res.status(503).json({error:e.message,code:'MARKET_GEO_RESTRICTED',source:'BINANCE_USDM_PRODUCTION'});throw e;} }
+    if(path==='/api/market/klines'&&req.method==='GET'){ const symbol=String(new URL(req.url,'https://vercel.local').searchParams.get('symbol')||'').toUpperCase(); if(!/^[A-Z0-9]{5,20}$/.test(symbol)) return res.status(400).json({error:'symbol invalid'}); return res.status(200).json(await marketBinance('/fapi/v1/klines',{params:{symbol,interval:'15m',limit:150}})); }
     if(path==='/api/account'&&req.method==='GET'){
       if(!KEY||!SECRET) return res.status(200).json({connected:false,reason:'API key not configured'});
       const a=await binance('/fapi/v3/account',{signed:true});
